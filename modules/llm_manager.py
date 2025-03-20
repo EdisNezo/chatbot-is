@@ -106,33 +106,48 @@ class LLMManager:
         Du bist ein freundlicher Berater, der auf Deutsch mit Kunden kommuniziert. Alle deine Antworten MÜSSEN auf Deutsch sein.
 
         Deine Aufgabe ist es, Fragen zu stellen, die einem nicht-technischen Kunden helfen, über die Prozesse und den Kontext seines Unternehmens
-        zu sprechen. Der Kunde hat KEIN Fachwissen über Informationssicherheit.
+        zu sprechen. Der Kunde hat KEIN Fachwissen über Informationssicherheit und kennt Begriffe wie "Threat Awareness" oder "Bedrohungsbewusstsein" nicht.
 
-        Formuliere eine freundliche, leicht verständliche Frage auf Deutsch zu folgendem Thema:
-        - Abschnitt des E-Learning-Kurses: {section_title}
-        - Beschreibung: {section_description}
+        Formuliere eine freundliche, leicht verständliche Frage auf Deutsch, die sich auf konkrete Alltagssituationen bezieht, statt auf abstrakte Sicherheitskonzepte.
+        Das Thema gehört zum Bereich: {section_title}
+        Die Beschreibung dieses Bereichs ist: {section_description}
 
         Berücksichtige dabei:
         - Organisation: {organization}
         - Zielgruppe: {audience}
         - Relevanter Kontext: {context_text}
 
+        WICHTIG: Vermeide komplizierte Fachbegriffe. Ersetze sie durch konkrete, alltagsnahe Begriffe:
+        - Statt "Threat Awareness / Bedrohungsbewusstsein" frage nach "typischen Situationen im Arbeitsalltag, die riskant sein könnten"
+        - Statt "Threat Identification" frage nach "Anzeichen, dass etwas nicht stimmt" oder "verdächtigen Dingen"
+        - Statt "Threat Impact Assessment" frage nach "Auswirkungen wenn etwas schiefgeht"
+        - Statt "Tactic Choice" frage nach "üblichen Vorgehensweisen" oder "Handlungsmöglichkeiten"
+        - Statt "Tactic Justification" frage nach "Gründen für bestimmte Vorgehensweisen"
+        - Statt "Tactic Mastery" frage nach "konkreten Schritten im Alltag"
+        - Statt "Tactic Check & Follow-Up" frage nach "was nach einem Vorfall passiert"
+
         Die Frage sollte:
         1. Sich auf die Geschäftsprozesse, tägliche Abläufe oder den Arbeitskontext des Kunden beziehen
         2. In einfacher, nicht-technischer Sprache formuliert sein
         3. Offen sein und ausführliche Antworten fördern
         4. KEINEN Fachjargon aus der Informationssicherheit enthalten
-        5. Dem Kunden nicht das Gefühl geben, dass er Informationssicherheitswissen haben müsste
+        5. So formuliert sein, dass der Kunde über seine eigenen Erfahrungen sprechen kann, ohne Sicherheitswissen zu benötigen
+        6. Stelle die Fragen immer auf Deutsch!
 
+        Beispielfragen:
+        - "Wie sieht ein typischer Arbeitstag bei Ihnen aus, wenn Sie E-Mails bearbeiten oder mit externen Anfragen umgehen?"
+        - "Gab es schon mal Situationen, in denen Sie bei einer Mitteilung oder Anfrage ein komisches Gefühl hatten?"
+        - "Was würde in Ihrem Arbeitsbereich passieren, wenn plötzlich wichtige Daten oder Systeme nicht mehr verfügbar wären?"
+        
         Gib nur die Frage zurück, keine Erklärungen oder Einleitungen.
 
-        WICHTIG: Deine Antwort muss auf Deutsch sein!
+        WICHTIG: Deine Antwort muss auf Deutsch sein! Verwende NICHT die englischen Fachbegriffe im Abschnittstitel.
         """
 
         return PromptTemplate(
             template=template,
             input_variables=["section_title", "section_description", "context_text",
-                            "organization", "audience", "user_response", "duration"]
+                            "organization", "audience"]
         )
 
     def _create_content_generation_prompt(self) -> PromptTemplate:

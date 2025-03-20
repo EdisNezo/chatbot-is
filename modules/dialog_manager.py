@@ -85,6 +85,26 @@ class DialogManager:
         Returns:
             Next question as a string
         """
+        
+        # Section information
+        section_id = next_section["id"]
+        section_title = next_section["title"]
+        section_description = next_section["description"]
+        section_type = next_section.get("type", "generic")
+        
+        # Translation mapping for user-friendly questions
+        user_friendly_questions = {
+            "threat_awareness": f"Wie sieht ein typischer Arbeitstag in {organization} aus, besonders wenn Sie mit Informationen oder Kommunikation arbeiten?",
+            "threat_identification": f"Ist Ihnen schon einmal etwas Ungewöhnliches oder Verdächtiges bei der Arbeit aufgefallen? Zum Beispiel seltsame E-Mails oder Anrufe?",
+            "threat_impact_assessment": f"Was würde in {organization} passieren, wenn plötzlich wichtige Daten oder Systeme nicht mehr verfügbar wären?",
+            "tactic_choice": f"Wie gehen Sie vor, wenn Sie etwas Verdächtiges bemerken? Haben Sie bestimmte Abläufe oder Ansprechpartner?",
+            "tactic_justification": f"Was sind die Gründe für Ihre derzeitigen Sicherheitsmaßnahmen in {organization}?",
+            "tactic_mastery": f"Können Sie mir konkrete Schritte oder Prozesse beschreiben, wie Sie mit vertraulichen Informationen umgehen?",
+            "tactic_check_follow_up": f"Was passiert in {organization} nach einem Vorfall oder einer Störung? Wie wird das nachverfolgt?"
+        }
+    
+    
+    
         # Predefined questions for emergencies
         predefined_questions = {
             "threat_awareness": "Wie sieht ein typischer Arbeitstag in Ihrem Unternehmen aus, besonders in Bezug auf den Umgang mit externen E-Mails oder Informationen?",
@@ -98,6 +118,13 @@ class DialogManager:
 
         # Find the next uncompleted section
         next_section = self.template_manager.get_next_section(self.conversation_state["completed_sections"])
+        
+        if is_new_section:
+            # Test the vector database with a simple query
+            test_query = f"Beispiel {next_section['title']}"
+            test_docs = self.test_vector_retrieval(test_query)
+            if not test_docs:
+                logger.warning(f"Vector retrieval test returned no results for '{test_query}'")
 
         if next_section is None:
             # All sections have been completed
@@ -158,7 +185,8 @@ class DialogManager:
 
         except Exception as e:
             # Log error
-            logger.error(f"Error during question generation for {section_title}: {e}")
+            logger.warning(f"Error in question generation, using user-friendly fallback for {section_id}")
+            question = user_friendly_questions.get(section_id, f"Können Sie mir mehr über Ihre tägliche Arbeit in {organization} erzählen?")
 
             # Increase error counter
             self.conversation_state["question_error_count"] += 1
@@ -169,8 +197,7 @@ class DialogManager:
                 self.conversation_state["completed_sections"].append(section_id)
                 return self.get_next_template_question()
 
-            # Use predefined question as fallback
-            question = predefined_questions.get(section_type, f"Können Sie mir mehr über {section_title} in Ihrem Arbeitsalltag erzählen?")
+        
 
         # Update the conversation state
         self.conversation_state["current_section"] = section_id
@@ -616,3 +643,31 @@ class DialogManager:
             print("Fixed dialog_manager.py - added missing return statement")
         else:
             print("No fix needed for dialog_manager.py or fix already applied")
+            
+    def test_vector_retrieval(self, query: str) -> List[Document]:
+        """
+        Tests the vector database retrieval with a query and returns the results.
+        Useful for debugging vector database issues.
+
+        Args:
+            query: The query to test
+
+        Returns:
+            List of Document objects retrieved
+        """
+        try:
+            # Try to retrieve documents with the query
+            docs = self.vector_store_manager.retrieve_documents(query=query, k=3)
+            
+            # Log the results
+            logger.info(f"Vector retrieval test for query '{query}':")
+            logger.info(f"Retrieved {len(docs)} documents")
+            
+            for i, doc in enumerate(docs):
+                source = doc.metadata.get('source', 'Unknown')
+                logger.info(f"Doc {i+1}: {source[:50]}... Content: {doc.page_content[:100]}...")
+                
+            return docs
+        except Exception as e:
+            logger.error(f"Error testing vector retrieval: {e}")
+            return []

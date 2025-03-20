@@ -14,6 +14,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadingOverlay = document.getElementById('loadingOverlay');
     const loadingMessage = document.getElementById('loadingMessage');
     const chatSpinner = document.getElementById('chatSpinner');
+    const vectorDbStatus = document.getElementById('vectorDbStatus');
+    const refreshVectorDbBtn = document.getElementById('refreshVectorDbBtn');   
+    const llmStatus = document.getElementById('llmStatus');
+    const refreshLlmBtn = document.getElementById('refreshLlmBtn');
     
     // Modal elements
     const alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
@@ -29,6 +33,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize by connecting to the backend
     initializeApp();
+    fetchVectorDbStats();
+    fetchLlmStatus();
+
     
     // Event listeners
     sendBtn.addEventListener('click', sendMessage);
@@ -42,6 +49,8 @@ document.addEventListener('DOMContentLoaded', function() {
     resetBtn.addEventListener('click', resetConversation);
     downloadBtn.addEventListener('click', downloadScript);
     refreshPreviewBtn.addEventListener('click', refreshPreview);
+    refreshVectorDbBtn.addEventListener('click', fetchVectorDbStats);
+    refreshLlmBtn.addEventListener('click', fetchLlmStatus);
     
     // Socket event listeners
     socket.on('connect', function() {
@@ -53,6 +62,112 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Functions
+
+    function fetchLlmStatus() {
+        llmStatus.innerHTML = `
+          <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <span>Prüfe Status...</span>
+          </div>
+        `;
+        
+        fetch('/api/llm-status')
+          .then(response => response.json())
+          .then(data => {
+            let statusClass, statusText, statusDetails;
+            
+            if (data.status === 'available') {
+              statusClass = 'bg-success';
+              statusText = 'Verfügbar';
+              statusDetails = `<small class="text-muted d-block">Modell: ${data.model}</small>
+                               <small class="text-muted d-block">Antwortzeit: ${data.response_time.toFixed(2)}s</small>`;
+            } else if (data.status === 'degraded') {
+              statusClass = 'bg-warning';
+              statusText = 'Eingeschränkt';
+              statusDetails = `<small class="text-muted d-block">Modell: ${data.model}</small>
+                               <small class="text-muted d-block">Antwort: "${data.response}"</small>`;
+            } else {
+              statusClass = 'bg-danger';
+              statusText = 'Nicht verfügbar';
+              statusDetails = data.error ? 
+                `<small class="text-danger d-block">Fehler: ${data.error}</small>` : 
+                `<small class="text-muted d-block">LLM antwortet nicht</small>`;
+            }
+            
+            llmStatus.innerHTML = `
+              <div class="mb-2">
+                <span class="badge ${statusClass} me-2">${statusText}</span>
+              </div>
+              ${statusDetails}
+              ${data.status !== 'available' ? 
+                `<div class="alert alert-warning mt-2 mb-0 py-1 px-2">
+                  <small>Prüfen Sie, ob der Ollama-Service läuft und das Modell "${data.model || 'llama3.1'}" verfügbar ist.</small>
+                </div>` : ''}
+            `;
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            llmStatus.innerHTML = `
+              <div class="alert alert-danger mb-0">
+                <small>Fehler beim Abrufen des Status: ${error.message}</small>
+              </div>
+            `;
+          });
+      }
+
+    function fetchVectorDbStats() {
+        vectorDbStatus.innerHTML = `
+          <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <span>Checking status...</span>
+          </div>
+        `;
+        
+        fetch('/api/vectordb-stats')
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              const stats = data.stats;
+              let statusHtml = `
+                <div class="mb-2">
+                  <span class="badge ${stats.document_count > 0 ? 'bg-success' : 'bg-danger'} me-2">
+                    ${stats.document_count > 0 ? 'Active' : 'Empty'}
+                  </span>
+                  <strong>${stats.document_count}</strong> documents indexed
+                </div>
+                <small class="text-muted d-block">Path: ${stats.database_path}</small>
+              `;
+              
+              if (stats.document_count === 0) {
+                statusHtml += `
+                  <div class="alert alert-warning mt-2 mb-0 py-1 px-2">
+                    <small>Vector database is empty. Try reindexing documents.</small>
+                  </div>
+                `;
+              }
+              
+              vectorDbStatus.innerHTML = statusHtml;
+            } else {
+              vectorDbStatus.innerHTML = `
+                <div class="alert alert-danger mb-0">
+                  Error: ${data.error}
+                </div>
+              `;
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            vectorDbStatus.innerHTML = `
+              <div class="alert alert-danger mb-0">
+                Error fetching statistics: ${error.message}
+              </div>
+            `;
+          });
+      }
     
     /**
      * Initialize the application by starting a conversation

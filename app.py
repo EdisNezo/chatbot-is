@@ -306,6 +306,109 @@ def get_stats():
             'success': False,
             'error': str(e)
         }), 500
+        
+@app.route('/api/vectordb-stats', methods=['GET'])
+def get_vectordb_stats():
+    """API endpoint to get vector database statistics"""
+    try:
+        # Check if vectorstore exists
+        if not hasattr(generator, 'vector_store_manager') or generator.vector_store_manager.vectorstore is None:
+            return jsonify({
+                'success': False,
+                'error': 'Vector database not initialized'
+            }), 400
+            
+        # Get collection info
+        collection = generator.vector_store_manager.vectorstore._collection
+        
+        # Get count of items
+        count = collection.count()
+        
+        # Try to get additional metadata
+        try:
+            # Get schema information
+            schema = collection.schema
+            embedding_size = getattr(schema, 'embedding_size', 'Unknown')
+            
+            # Get some sample document IDs
+            sample_ids = []
+            if count > 0:
+                sample_ids = collection.get(limit=5)['ids']
+        except Exception as e:
+            schema = None
+            embedding_size = 'Error retrieving'
+            sample_ids = []
+            
+        return jsonify({
+            'success': True,
+            'stats': {
+                'document_count': count,
+                'embedding_size': embedding_size,
+                'sample_ids': sample_ids,
+                'database_path': generator.config["vectorstore_dir"]
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error retrieving vector database stats: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+        
+@app.route('/api/llm-status', methods=['GET'])
+def get_llm_status():
+    """API endpoint to check if the LLM is accessible"""
+    try:
+        # Check if the LLM manager exists
+        if not hasattr(generator, 'llm_manager'):
+            return jsonify({
+                'success': False,
+                'error': 'LLM Manager not initialized',
+                'status': 'unavailable'
+            })
+            
+        # Try a simple generation with the LLM
+        test_prompt = "Gib mir nur das Wort 'Funktioniert' zurück, nicht mehr."
+        try:
+            start_time = datetime.now()
+            response = generator.llm_manager.llm(test_prompt)
+            end_time = datetime.now()
+            response_time = (end_time - start_time).total_seconds()
+            
+            # Check if the response contains expected text
+            if 'funktioniert' in response.lower():
+                return jsonify({
+                    'success': True,
+                    'status': 'available',
+                    'model': generator.config["model_name"],
+                    'response_time': response_time,
+                    'response': response[:50]  # Just return the first 50 chars as sample
+                })
+            else:
+                # If response doesn't contain expected text, LLM might be responding but incorrectly
+                return jsonify({
+                    'success': True,
+                    'status': 'degraded',
+                    'model': generator.config["model_name"],
+                    'response_time': response_time,
+                    'response': response[:50]
+                })
+        except Exception as e:
+            # LLM is unavailable
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'status': 'unavailable',
+                'model': generator.config["model_name"]
+            })
+    
+    except Exception as e:
+        logger.error(f"Error checking LLM status: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'status': 'error'
+        }), 500    
 
 # WebSocket for real-time updates
 @socketio.on('connect')

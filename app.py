@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import argparse
 from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_from_directory
@@ -12,6 +13,12 @@ from modules.elearning_generator import ELearningCourseGenerator
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Add command-line argument parsing
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='E-Learning Course Generator for Information Security')
+    parser.add_argument('--reindex', action='store_true', help='Reindex all documents in the documents directory')
+    return parser.parse_args()
 
 # Initialize Flask app
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -318,7 +325,7 @@ def create_default_config():
             "documents_dir": "./data/documents",
             "vectorstore_dir": "./data/vectorstore",
             "output_dir": "./data/output",
-            "model_name": "llama3:8b",
+            "model_name": "llama3.1",  # Changed from llama3:8b to llama3.1
             "chunk_size": 1000,
             "chunk_overlap": 200
         }
@@ -336,11 +343,35 @@ def create_default_config():
         logger.info(f"Created default configuration at {config_path}")
 
 if __name__ == '__main__':
+    # Parse command-line arguments
+    args = parse_arguments()
+    
     # Create default config if not exists
     create_default_config()
+    
+    # Handle reindexing command if specified
+    if args.reindex:
+        try:
+            # Make sure the generator is set up
+            if not hasattr(generator, 'dialog_manager') or generator.dialog_manager is None:
+                generator.setup()
+            
+            # Perform reindexing
+            print("Starting document reindexing...")
+            doc_count = generator.reindex_documents()
+            print(f"Reindexing completed successfully. {doc_count} documents indexed.")
+            
+            # Exit after reindexing completes
+            import sys
+            sys.exit(0)
+        except Exception as e:
+            logger.error(f"Error during reindexing: {e}")
+            print(f"Error during reindexing: {e}")
+            import sys
+            sys.exit(1)
     
     # Get port from environment or use default
     port = int(os.environ.get('PORT', 8000))
     
-    # Start the server
+    # Start the server (only if not reindexing)
     socketio.run(app, host='0.0.0.0', port=port, debug=False)

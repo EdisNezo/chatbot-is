@@ -213,10 +213,27 @@ class ELearningCourseGenerator:
         # Delete the old vector database if it exists
         if os.path.exists(self.config["vectorstore_dir"]):
             import shutil
-            shutil.rmtree(self.config["vectorstore_dir"])
-            os.makedirs(self.config["vectorstore_dir"], exist_ok=True)
-            logger.info(f"Old vector database deleted: {self.config['vectorstore_dir']}")
-
+            try:
+                shutil.rmtree(self.config["vectorstore_dir"])
+            except PermissionError:
+                logger.warning("Permission error when trying to delete vectorstore directory. Trying alternative approach.")
+                # Try to delete files individually
+                for root, dirs, files in os.walk(self.config["vectorstore_dir"]):
+                    for file in files:
+                        try:
+                            os.remove(os.path.join(root, file))
+                        except Exception as e:
+                            logger.error(f"Could not remove file {file}: {e}")
+        
+        # Make sure the directory exists with proper permissions
+        os.makedirs(self.config["vectorstore_dir"], exist_ok=True)
+        
+        # Try to ensure we have write permissions (works on Unix-like systems)
+        try:
+            os.chmod(self.config["vectorstore_dir"], 0o777)  # Full permissions for everyone
+        except Exception as e:
+            logger.warning(f"Could not set permissions on vectorstore directory: {e}")
+        
         # Create new vector database
         self.vector_store_manager.create_vectorstore(processed_docs)
         logger.info(f"Reindexing completed. {len(processed_docs)} documents indexed.")

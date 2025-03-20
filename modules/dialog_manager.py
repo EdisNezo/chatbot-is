@@ -3,7 +3,7 @@ import logging
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 import re
-from langchain_core.documents import Document   # Add this if missing
+from langchain_core.documents import Document  
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -36,7 +36,8 @@ class DialogManager:
             "completed_sections": [],
             "current_section": None,
             "content_quality_checks": {},
-            "current_section_question_count": 0
+            "current_section_question_count": 0,
+            "question_error_count": 0
         }
 
         # List of context questions
@@ -78,6 +79,9 @@ class DialogManager:
 
         elif self.conversation_state["current_step"] == "completion":
             return "Vielen Dank für Ihre Mitwirkung! Der E-Learning-Kurs wurde erfolgreich erstellt und kann jetzt heruntergeladen werden."
+        
+        # Default fallback
+        return "Wie kann ich Ihnen mit Ihrem E-Learning-Kurs zur Informationssicherheit weiterhelfen?"
 
     def get_next_template_question(self) -> str:
         """
@@ -86,26 +90,6 @@ class DialogManager:
         Returns:
             Next question as a string
         """
-        
-        # Section information
-        section_id = next_section["id"]
-        section_title = next_section["title"]
-        section_description = next_section["description"]
-        section_type = next_section.get("type", "generic")
-        
-        # Translation mapping for user-friendly questions
-        user_friendly_questions = {
-            "threat_awareness": f"Wie sieht ein typischer Arbeitstag in {organization} aus, besonders wenn Sie mit Informationen oder Kommunikation arbeiten?",
-            "threat_identification": f"Ist Ihnen schon einmal etwas Ungewöhnliches oder Verdächtiges bei der Arbeit aufgefallen? Zum Beispiel seltsame E-Mails oder Anrufe?",
-            "threat_impact_assessment": f"Was würde in {organization} passieren, wenn plötzlich wichtige Daten oder Systeme nicht mehr verfügbar wären?",
-            "tactic_choice": f"Wie gehen Sie vor, wenn Sie etwas Verdächtiges bemerken? Haben Sie bestimmte Abläufe oder Ansprechpartner?",
-            "tactic_justification": f"Was sind die Gründe für Ihre derzeitigen Sicherheitsmaßnahmen in {organization}?",
-            "tactic_mastery": f"Können Sie mir konkrete Schritte oder Prozesse beschreiben, wie Sie mit vertraulichen Informationen umgehen?",
-            "tactic_check_follow_up": f"Was passiert in {organization} nach einem Vorfall oder einer Störung? Wie wird das nachverfolgt?"
-        }
-    
-    
-    
         # Predefined questions for emergencies
         predefined_questions = {
             "threat_awareness": "Wie sieht ein typischer Arbeitstag in Ihrem Unternehmen aus, besonders in Bezug auf den Umgang mit externen E-Mails oder Informationen?",
@@ -117,97 +101,121 @@ class DialogManager:
             "tactic_check_follow_up": "Was passiert in Ihrem Unternehmen, nachdem ein Sicherheitsvorfall gemeldet wurde?"
         }
 
-        # Find the next uncompleted section
-        next_section = self.template_manager.get_next_section(self.conversation_state["completed_sections"])
-        
-        if is_new_section:
-            # Test the vector database with a simple query
-            test_query = f"Beispiel {next_section['title']}"
-            test_docs = self.test_vector_retrieval(test_query)
-            if not test_docs:
-                logger.warning(f"Vector retrieval test returned no results for '{test_query}'")
-
-        if next_section is None:
-            # All sections have been completed
-            self.conversation_state["current_step"] = "review"
-            return self.get_next_question()
-
-        # Check if we're switching to a new section
-        current_section = self.conversation_state.get("current_section")
-        is_new_section = current_section != next_section["id"]
-
-        # Initialize question_error_count if not present
-        if "question_error_count" not in self.conversation_state:
-            self.conversation_state["question_error_count"] = 0
-
-        if is_new_section:
-            # Reset counters for new section
-            self.conversation_state["current_section_question_count"] = 0
-            self.conversation_state["question_error_count"] = 0
-
-        # Section information
-        section_id = next_section["id"]
-        section_title = next_section["title"]
-        section_description = next_section["description"]
-        section_type = next_section.get("type", "generic")
-
         try:
-            # Get relevant documents for this section
-            retrieval_queries = self.generate_retrieval_queries(section_title, section_id)
+            # Find the next uncompleted section
+            next_section = self.template_manager.get_next_section(self.conversation_state["completed_sections"])
 
-            retrieved_docs = self.vector_store_manager.retrieve_with_multiple_queries(
-                queries=retrieval_queries,
-                filter={"section_type": section_type},
-                top_k=2  # Reduce to 2 instead of 3 for less memory usage
-            )
+            if next_section is None:
+                # All sections have been completed
+                self.conversation_state["current_step"] = "review"
+                return self.get_next_question()
 
-            # Limit context to max. 1000 characters
-            context_text = "\n\n".join([doc.page_content for doc in retrieved_docs])
-            if len(context_text) > 1000:
-                context_text = context_text[:1000] + "..."
+            # Check if we're switching to a new section
+            current_section = self.conversation_state.get("current_section")
+            is_new_section = current_section != next_section["id"]
 
-            # Context information for question generation
-            organization = self.conversation_state["context_info"].get(
-                "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
-            audience = self.conversation_state["context_info"].get(
-                "Welche Mitarbeitergruppen sollen geschult werden?", "")
+            # Initialize question_error_count if not present or reset for new section
+            if is_new_section:
+                # Reset counters for new section
+                self.conversation_state["current_section_question_count"] = 0
+                self.conversation_state["question_error_count"] = 0
 
-            # Try to generate question with LLM
-            question = self.llm_manager.generate_question(
-                section_title=section_title,
-                section_description=section_description,
-                context_text=context_text,
-                organization=organization,
-                audience=audience
-            )
+            # Section information
+            section_id = next_section["id"]
+            section_title = next_section["title"]
+            section_description = next_section["description"]
+            section_type = next_section.get("type", "generic")
+            
+            # User-friendly questions mapping
+            user_friendly_questions = {
+                "threat_awareness": "Wie sieht ein typischer Arbeitstag in Ihrem Unternehmen aus, besonders wenn Sie mit Informationen oder Kommunikation arbeiten?",
+                "threat_identification": "Ist Ihnen schon einmal etwas Ungewöhnliches oder Verdächtiges bei der Arbeit aufgefallen? Zum Beispiel seltsame E-Mails oder Anrufe?",
+                "threat_impact_assessment": "Was würde in Ihrem Unternehmen passieren, wenn plötzlich wichtige Daten oder Systeme nicht mehr verfügbar wären?",
+                "tactic_choice": "Wie gehen Sie vor, wenn Sie etwas Verdächtiges bemerken? Haben Sie bestimmte Abläufe oder Ansprechpartner?",
+                "tactic_justification": "Was sind die Gründe für Ihre derzeitigen Sicherheitsmaßnahmen in Ihrem Unternehmen?",
+                "tactic_mastery": "Können Sie mir konkrete Schritte oder Prozesse beschreiben, wie Sie mit vertraulichen Informationen umgehen?",
+                "tactic_check_follow_up": "Was passiert in Ihrem Unternehmen nach einem Vorfall oder einer Störung? Wie wird das nachverfolgt?"
+            }
 
-            # Reset error counter on success
-            self.conversation_state["question_error_count"] = 0
+            try:
+                # Get relevant documents for this section
+                retrieval_queries = self.generate_retrieval_queries(section_title, section_id)
 
+                retrieved_docs = self.vector_store_manager.retrieve_with_multiple_queries(
+                    queries=retrieval_queries,
+                    filter={"section_type": section_type},
+                    top_k=2  # Reduce to 2 instead of 3 for less memory usage
+                )
+
+                # Limit context to max. 1000 characters
+                context_text = "\n\n".join([doc.page_content for doc in retrieved_docs])
+                if len(context_text) > 1000:
+                    context_text = context_text[:1000] + "..."
+
+                # Context information for question generation
+                organization = self.conversation_state["context_info"].get(
+                    "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
+                audience = self.conversation_state["context_info"].get(
+                    "Welche Mitarbeitergruppen sollen geschult werden?", "")
+
+                # Try to generate question with LLM
+                question = self.llm_manager.generate_question(
+                    section_title=section_title,
+                    section_description=section_description,
+                    context_text=context_text,
+                    organization=organization,
+                    audience=audience
+                )
+
+                # Reset error counter on success
+                self.conversation_state["question_error_count"] = 0
+
+            except Exception as e:
+                # Log error
+                logger.error(f"Error during question generation for {section_title}: {e}")
+
+                # Increase error counter
+                self.conversation_state["question_error_count"] += 1
+
+                # Skip to next section if too many errors
+                if self.conversation_state["question_error_count"] > 2:
+                    logger.warning(f"Too many errors with {section_title}, skipping section")
+                    self.conversation_state["completed_sections"].append(section_id)
+                    return self.get_next_template_question()
+
+                # Use predefined question as fallback
+                question = user_friendly_questions.get(section_id, 
+                                                      predefined_questions.get(section_type, 
+                                                                             f"Können Sie mir mehr über {section_title} in Ihrem Arbeitsalltag erzählen?"))
+
+            # Update the conversation state
+            self.conversation_state["current_section"] = section_id
+
+            # Add transition info for new section
+            friendly_section_names = {
+                "threat_awareness": "typische Arbeitssituationen",
+                "threat_identification": "ungewöhnliche Vorkommnisse",
+                "threat_impact_assessment": "mögliche Auswirkungen von Störungen",
+                "tactic_choice": "Ihre Handlungsmöglichkeiten",
+                "tactic_justification": "die Gründe für bestimmte Maßnahmen",
+                "tactic_mastery": "konkrete Schritte im Arbeitsalltag",
+                "tactic_check_follow_up": "Nachverfolgung von Vorfällen"
+            }
+            
+            if is_new_section:
+                friendly_name = friendly_section_names.get(section_id, section_title)
+                return f"Nun sprechen wir über {friendly_name}.\n\n{question}"
+
+            return question
+            
         except Exception as e:
-            # Log error
-            logger.warning(f"Error in question generation, using user-friendly fallback for {section_id}")
-            question = user_friendly_questions.get(section_id, f"Können Sie mir mehr über Ihre tägliche Arbeit in {organization} erzählen?")
-
-            # Increase error counter
-            self.conversation_state["question_error_count"] += 1
-
-            # Skip to next section if too many errors
-            if self.conversation_state["question_error_count"] > 2:
-                logger.warning(f"Too many errors with {section_title}, skipping section")
-                self.conversation_state["completed_sections"].append(section_id)
-                return self.get_next_template_question()
-
-        
-
-        # Update the conversation state
-        self.conversation_state["current_section"] = section_id
-
-        # Add transition info for new section
-        if is_new_section:
-            return f"Nun kommen wir zum Abschnitt '{section_title}'.\n\n{question}"
-
-        return question
+            logger.error(f"Error in get_next_template_question: {e}")
+            # General fallback if something unexpected happens
+            section_id = self.conversation_state.get("current_section")
+            if section_id:
+                return predefined_questions.get(section_id, "Können Sie mir mehr über Ihre tägliche Arbeit erzählen?")
+            else:
+                return "Können Sie mir mehr über Ihre tägliche Arbeit erzählen?"
 
     def generate_retrieval_queries(self, section_title: str, section_id: str) -> List[str]:
         """
@@ -280,6 +288,8 @@ class DialogManager:
             queries.append(compliance_query)
 
         queries.extend(specific_queries)
+        
+        return queries
 
     def process_user_response(self, response: str) -> str:
         """
@@ -308,15 +318,18 @@ class DialogManager:
             if max_questions_reached or self.is_response_adequate(response):
                 # Save the response for the current section
                 current_section = self.conversation_state["current_section"]
-                self.conversation_state["section_responses"][current_section] = response
+                if current_section:  # Make sure current_section is not None
+                    self.conversation_state["section_responses"][current_section] = response
 
-                # Generate content for this section
-                self._generate_section_content(current_section)
+                    # Generate content for this section
+                    self._generate_section_content(current_section)
 
-                self.conversation_state["completed_sections"].append(current_section)
+                    self.conversation_state["completed_sections"].append(current_section)
 
-                # Reset the question counter for the next section
-                self.conversation_state["current_section_question_count"] = 0
+                    # Reset the question counter for the next section
+                    self.conversation_state["current_section_question_count"] = 0
+                else:
+                    logger.error("Current section is None when processing response")
             else:
                 # Request a more detailed answer
                 return self.generate_followup_question(response)
@@ -378,7 +391,14 @@ class DialogManager:
             Follow-up question as a string
         """
         current_section_id = self.conversation_state["current_section"]
+        
+        if not current_section_id:
+            return "Können Sie bitte etwas ausführlicher auf die Frage eingehen?"
+            
         section = self.template_manager.get_section_by_id(current_section_id)
+        
+        if not section:
+            return "Können Sie bitte etwas ausführlicher auf die Frage eingehen?"
 
         followup_prompt = f"""
         Die folgende Antwort des Kunden zu einer Frage über {section['title']} ist recht kurz oder allgemein:
@@ -399,9 +419,12 @@ class DialogManager:
         Stelle nur die Nachfrage, keine Einleitung oder zusätzliche Erklärungen.
         """
 
-        followup_question = self.llm_manager.llm(followup_prompt)
-
-        return followup_question
+        try:
+            followup_question = self.llm_manager.llm(followup_prompt)
+            return followup_question
+        except Exception as e:
+            logger.error(f"Error generating followup question: {e}")
+            return "Vielen Dank für Ihre Antwort. Könnten Sie vielleicht noch etwas konkreter werden? Beispiele aus Ihrem Arbeitsalltag wären besonders hilfreich."
 
     def _generate_section_content(self, section_id: str) -> None:
         """
@@ -410,72 +433,93 @@ class DialogManager:
         Args:
             section_id: ID of the section
         """
-        # Get the user's response
-        user_response = self.conversation_state["section_responses"][section_id]
-        section = self.template_manager.get_section_by_id(section_id)
+        try:
+            # Get the user's response
+            user_response = self.conversation_state["section_responses"].get(section_id, "")
+            if not user_response:
+                logger.error(f"No user response found for section {section_id}")
+                self.conversation_state["generated_content"][section_id] = f"Inhalt für {section_id} konnte nicht generiert werden. Keine Antwort vorhanden."
+                return
+                
+            section = self.template_manager.get_section_by_id(section_id)
+            if not section:
+                logger.error(f"Section {section_id} not found in template")
+                self.conversation_state["generated_content"][section_id] = f"Inhalt für {section_id} konnte nicht generiert werden. Abschnitt nicht gefunden."
+                return
 
-        # Extract key information for retrieval
-        key_concepts = self.llm_manager.extract_key_information(
-            section_type=section.get("type", "generic"),
-            user_response=user_response
-        )
+            # Extract key information for retrieval
+            key_concepts = self.llm_manager.extract_key_information(
+                section_type=section.get("type", "generic"),
+                user_response=user_response
+            )
 
-        # Generate retrieval queries based on key concepts
-        retrieval_queries = [
-            f"{concept} Informationssicherheit"
-            for concept in key_concepts
-        ]
+            # Generate retrieval queries based on key concepts
+            retrieval_queries = [
+                f"{concept} Informationssicherheit"
+                for concept in key_concepts
+            ]
 
-        # Add section-specific queries
-        retrieval_queries.extend(self.generate_retrieval_queries(section["title"], section_id))
+            # Add section-specific queries
+            retrieval_queries.extend(self.generate_retrieval_queries(section["title"], section_id))
 
-        # Get relevant documents
-        retrieved_docs = self.vector_store_manager.retrieve_with_multiple_queries(
-            queries=retrieval_queries,
-            filter={"section_type": section.get("type", "generic")},
-            top_k=5
-        )
+            # Get relevant documents
+            retrieved_docs = self.vector_store_manager.retrieve_with_multiple_queries(
+                queries=retrieval_queries,
+                filter={"section_type": section.get("type", "generic")},
+                top_k=5
+            )
 
-        # Extract context from retrieved documents
-        context_text = "\n\n".join([doc.page_content for doc in retrieved_docs])
+            # Extract context from retrieved documents
+            context_text = "\n\n".join([doc.page_content for doc in retrieved_docs])
 
-        # Generate content for this section
-        organization = self.conversation_state["context_info"].get(
-            "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
-        audience = self.conversation_state["context_info"].get(
-            "Welche Mitarbeitergruppen sollen geschult werden?", "")
-        duration = self.conversation_state["context_info"].get(
-            "Wie lang sollte der E-Learning-Kurs maximal dauern?", "")
+            # Generate content for this section
+            organization = self.conversation_state["context_info"].get(
+                "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
+            audience = self.conversation_state["context_info"].get(
+                "Welche Mitarbeitergruppen sollen geschult werden?", "")
+            duration = self.conversation_state["context_info"].get(
+                "Wie lang sollte der E-Learning-Kurs maximal dauern?", "")
 
-        content = self.llm_manager.generate_content(
-            section_title=section["title"],
-            section_description=section.get("description", ""),
-            user_response=user_response,
-            organization=organization,
-            audience=audience,
-            duration=duration,
-            context_text=context_text
-        )
+            content = self.llm_manager.generate_content(
+                section_title=section["title"],
+                section_description=section.get("description", ""),
+                user_response=user_response,
+                organization=organization,
+                audience=audience,
+                duration=duration,
+                context_text=context_text
+            )
 
-        # Perform advanced hallucination check
-        advanced_check = self.llm_manager.advanced_hallucination_detection(content)
+            # Perform advanced hallucination check
+            advanced_check = self.llm_manager.advanced_hallucination_detection(content)
 
-        # Perform quality check
-        has_issues, verified_content = self.llm_manager.check_hallucinations(
-            content=content,
-            user_input=user_response,
-            context_text=context_text
-        )
+            # Perform quality check
+            has_issues, verified_content = self.llm_manager.check_hallucinations(
+                content=content,
+                user_input=user_response,
+                context_text=context_text
+            )
 
-        # Save the result of the quality check
-        self.conversation_state["content_quality_checks"][section_id] = {
-            "has_issues": has_issues,
-            "confidence_score": advanced_check["confidence_score"],
-            "suspicious_sections": advanced_check["suspicious_sections"]
-        }
+            # Save the result of the quality check
+            self.conversation_state["content_quality_checks"][section_id] = {
+                "has_issues": has_issues,
+                "confidence_score": advanced_check.get("confidence_score", 0.5),
+                "suspicious_sections": advanced_check.get("suspicious_sections", [])
+            }
 
-        # Save the generated content
-        self.conversation_state["generated_content"][section_id] = verified_content
+            # Save the generated content
+            self.conversation_state["generated_content"][section_id] = verified_content
+            
+        except Exception as e:
+            logger.error(f"Error generating content for section {section_id}: {e}")
+            # Set a fallback content
+            self.conversation_state["generated_content"][section_id] = f"Für diesen Abschnitt konnte kein Inhalt generiert werden. Bitte versuchen Sie es später erneut."
+            # Also save a record of the error in the quality checks
+            self.conversation_state["content_quality_checks"][section_id] = {
+                "has_issues": True,
+                "confidence_score": 0.0,
+                "suspicious_sections": [f"Fehler bei der Inhaltsgenerierung: {str(e)}"]
+            }
 
     def generate_script(self) -> Dict[str, Any]:
         """
@@ -485,12 +529,26 @@ class DialogManager:
             Course as a dictionary
         """
         # Create a script from the generated contents
-        script = self.template_manager.create_script_from_responses(
-            self.conversation_state["generated_content"],
-            self.conversation_state["context_info"]
-        )
-
-        return script
+        try:
+            script = self.template_manager.create_script_from_responses(
+                self.conversation_state["generated_content"],
+                self.conversation_state["context_info"]
+            )
+            return script
+        except Exception as e:
+            logger.error(f"Error generating script: {e}")
+            # Create a minimal script if there's an error
+            return {
+                "title": "E-Learning-Kurs zur Informationssicherheit",
+                "description": "Bei der Generierung dieses Kurses ist ein Fehler aufgetreten.",
+                "sections": [
+                    {
+                        "id": "error",
+                        "title": "Fehler bei der Generierung",
+                        "content": f"Bei der Generierung des Skripts ist ein Fehler aufgetreten: {str(e)}"
+                    }
+                ]
+            }
 
     def get_script_summary(self) -> str:
         """
@@ -499,40 +557,44 @@ class DialogManager:
         Returns:
             Summary as a string
         """
-        # Generate the course
-        script = self.generate_script()
+        try:
+            # Generate the course
+            script = self.generate_script()
 
-        # Create a summary in the format of the example script
-        organization = self.conversation_state["context_info"].get(
-            "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
+            # Create a summary in the format of the example script
+            organization = self.conversation_state["context_info"].get(
+                "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
 
-        summary = f"# {script.get('title', 'E-Learning-Kurs zur Informationssicherheit')}\n\n"
+            summary = f"# {script.get('title', 'E-Learning-Kurs zur Informationssicherheit')}\n\n"
 
-        if "description" in script:
-            summary += f"{script['description']}\n\n"
+            if "description" in script:
+                summary += f"{script['description']}\n\n"
 
-        # Format the sections in the desired table format
-        for section in script["sections"]:
-            title = section["title"]
-            content = section.get("content", "Kein Inhalt verfügbar.")
+            # Format the sections in the desired table format
+            for section in script["sections"]:
+                title = section["title"]
+                content = section.get("content", "Kein Inhalt verfügbar.")
 
-            summary += f"## {title}\n\n"
-            summary += f"{content}\n\n"
+                summary += f"## {title}\n\n"
+                summary += f"{content}\n\n"
 
-            # Add note on quality check if relevant
-            section_id = section["id"]
-            if section_id in self.conversation_state["content_quality_checks"]:
-                quality_check = self.conversation_state["content_quality_checks"][section_id]
-                if quality_check["has_issues"]:
-                    summary += "*Hinweis: Dieser Abschnitt wurde nach der Qualitätsprüfung überarbeitet.*\n\n"
+                # Add note on quality check if relevant
+                section_id = section["id"]
+                if section_id in self.conversation_state["content_quality_checks"]:
+                    quality_check = self.conversation_state["content_quality_checks"][section_id]
+                    if quality_check.get("has_issues", False):
+                        summary += "*Hinweis: Dieser Abschnitt wurde nach der Qualitätsprüfung überarbeitet.*\n\n"
 
-        # Add closing message, similar to the example script
-        summary += "Sie können das Wissen jetzt bei Ihrer Arbeit umsetzen. Dadurch steigern Sie das\n"
-        summary += f"Sicherheitsbewusstsein in {organization} und Sie schützen sich, Ihre Kolleginnen\n"
-        summary += "und Kollegen und die gesamte Organisation.\n\n"
-        summary += "Gut gemacht!\n"
+            # Add closing message, similar to the example script
+            summary += "Sie können das Wissen jetzt bei Ihrer Arbeit umsetzen. Dadurch steigern Sie das\n"
+            summary += f"Sicherheitsbewusstsein in {organization} und Sie schützen sich, Ihre Kolleginnen\n"
+            summary += "und Kollegen und die gesamte Organisation.\n\n"
+            summary += "Gut gemacht!\n"
 
-        return summary
+            return summary
+        except Exception as e:
+            logger.error(f"Error creating script summary: {e}")
+            return f"Bei der Erstellung der Zusammenfassung ist ein Fehler aufgetreten: {str(e)}"
 
     def generate_html_script(self) -> str:
         """
@@ -541,110 +603,70 @@ class DialogManager:
         Returns:
             HTML-formatted script
         """
-        script = self.generate_script()
-        organization = self.conversation_state["context_info"].get(
-            "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
-
-        html_output = f"""<!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>{html.escape(script.get('title', 'E-Learning-Kurs zur Informationssicherheit'))}</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 20px; }}
-            h1 {{ color: #2c3e50; }}
-            .section {{ margin-bottom: 20px; }}
-            .section-title {{ background-color: #f5f5f5; padding: 10px; font-weight: bold; }}
-            .section-content {{ padding: 10px; }}
-            .footer {{ margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; }}
-        </style>
-    </head>
-    <body>
-        <h1>{html.escape(script.get('title', 'E-Learning-Kurs zur Informationssicherheit'))}</h1>
-        <p>{html.escape(script.get('description', ''))}</p>
-    """
-
-        # Add the sections
-        for section in script["sections"]:
-            title = section["title"]
-            content = section.get("content", "Kein Inhalt verfügbar.")
-
-            html_output += f"""    <div class="section">
-            <div class="section-title">{html.escape(title)}</div>"""
-
-            # Process content with backslashes outside the f-string
-            escaped_content = html.escape(content).replace('\n', '<br>')
-            html_output += f"""
-            <div class="section-content">{escaped_content}</div>
-        </div>
-    """
-
-        # Add the conclusion
-        html_output += f"""    <div class="footer">
-            <p>Sie können das Wissen jetzt bei Ihrer Arbeit umsetzen. Dadurch steigern Sie das
-            Sicherheitsbewusstsein in {html.escape(organization)} und Sie schützen sich, Ihre Kolleginnen
-            und Kollegen und die gesamte Organisation.</p>
-            <p>Gut gemacht!</p>
-        </div>
-    </body>
-    </html>"""
-
-        return html_output
-
-    def save_script(self, output_path: str, format: str = "txt") -> None:
-        """
-        Saves the generated course to a file.
-
-        Args:
-            output_path: Path to the output file
-            format: Format of the output ("txt", "json", or "html")
-        """
         try:
-            if format == "json":
-                script = self.generate_script()
-                with open(output_path, "w", encoding="utf-8") as f:
-                    json.dump(script, f, ensure_ascii=False, indent=2)
-            elif format == "html":
-                html_script = self.generate_html_script()
-                with open(output_path, "w", encoding="utf-8") as f:
-                    f.write(html_script)
-            else:  # Default: txt
-                script_summary = self.get_script_summary()
-                with open(output_path, "w", encoding="utf-8") as f:
-                    f.write(script_summary)
+            script = self.generate_script()
+            organization = self.conversation_state["context_info"].get(
+                "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
 
-            logger.info(f"E-Learning course saved: {output_path}")
+            html_output = f"""<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>{html.escape(script.get('title', 'E-Learning-Kurs zur Informationssicherheit'))}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                h1 {{ color: #2c3e50; }}
+                .section {{ margin-bottom: 20px; }}
+                .section-title {{ background-color: #f5f5f5; padding: 10px; font-weight: bold; }}
+                .section-content {{ padding: 10px; }}
+                .footer {{ margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; }}
+            </style>
+        </head>
+        <body>
+            <h1>{html.escape(script.get('title', 'E-Learning-Kurs zur Informationssicherheit'))}</h1>
+            <p>{html.escape(script.get('description', ''))}</p>
+        """
+
+            # Add the sections
+            for section in script["sections"]:
+                title = section["title"]
+                content = section.get("content", "Kein Inhalt verfügbar.")
+
+                html_output += f"""    <div class="section">
+                <div class="section-title">{html.escape(title)}</div>"""
+
+                # Process content with backslashes outside the f-string
+                escaped_content = html.escape(content).replace('\n', '<br>')
+                html_output += f"""
+                <div class="section-content">{escaped_content}</div>
+            </div>
+        """
+
+            # Add the conclusion
+            html_output += f"""    <div class="footer">
+                <p>Sie können das Wissen jetzt bei Ihrer Arbeit umsetzen. Dadurch steigern Sie das
+                Sicherheitsbewusstsein in {html.escape(organization)} und Sie schützen sich, Ihre Kolleginnen
+                und Kollegen und die gesamte Organisation.</p>
+                <p>Gut gemacht!</p>
+            </div>
+        </body>
+        </html>"""
+
+            return html_output
         except Exception as e:
-            logger.error(f"Error saving e-learning course: {e}")
-            
-            
-    def fix_dialog_manager():
-        """
-        Update the generate_retrieval_queries function in dialog_manager.py
-        """
-        file_path = "modules/dialog_manager.py"
-        
-        with open(file_path, 'r') as file:
-            content = file.read()
-        
-        # Fix the missing return statement in generate_retrieval_queries
-        if "def generate_retrieval_queries" in content and "return queries" not in content:
-            # Find the function definition
-            import re
-            pattern = r"(def generate_retrieval_queries.*?queries\.extend\(specific_queries\)\s*)(    \n|$)"
-            replacement = r"\1\n    return queries\n\2"
-            
-            # Apply the fix
-            fixed_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
-            
-            # Write the fixed content
-            with open(file_path, 'w') as file:
-                file.write(fixed_content)
-            
-            print("Fixed dialog_manager.py - added missing return statement")
-        else:
-            print("No fix needed for dialog_manager.py or fix already applied")
-            
+            logger.error(f"Error generating HTML script: {e}")
+            return f"""<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Fehler bei der Generierung</title>
+        </head>
+        <body>
+            <h1>Fehler bei der Generierung des HTML-Skripts</h1>
+            <p>Bei der Erstellung des HTML-Skripts ist ein Fehler aufgetreten: {html.escape(str(e))}</p>
+        </body>
+        </html>"""
+
     def test_vector_retrieval(self, query: str) -> List[Document]:
         """
         Tests the vector database retrieval with a query and returns the results.

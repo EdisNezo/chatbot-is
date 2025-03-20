@@ -239,3 +239,4 @@ class ELearningCourseGenerator:
         logger.info(f"Reindexing completed. {len(processed_docs)} documents indexed.")
 
         return len(processed_docs)
+    

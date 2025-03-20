@@ -1,0 +1,64 @@
+Phishing-Simulationen
+
+Phishing ist eine der häufigsten Gefahren: Laut einer Studie öffneten 88 % der Beschäftigten im Gesundheitswesen Phishing-E-Mails​
+getastra.com
+. Solche Zahlen verdeutlichen die Notwendigkeit gezielter Phishing-Schulungen.
+
+    Zielgruppe: Alle Mitarbeiter, insbesondere solche mit regelmäßigem E-Mail- und Messaging-Kontakt. Dazu gehören Pflegepersonal und Ärzte (die häufig Laborberichte, Überweisungen oder Kollegenschreiben per Mail erhalten), Verwaltungsangestellte (z. B. Patientenaufnahme, Abrechnung) sowie IT-Mitarbeiter (die oft Ziel von gefälschten „IT-Support“-Mails sind).
+
+    Problem: Phishing-Angriffe sind im Gesundheitswesen besonders verbreitet und erfolgreich. Angreifer spezialisieren ihre Phishing-Mails auf Krankenhaus-Themen – etwa gefälschte Befunde, angebliche Rechnungen von Lieferanten oder vermeintliche IT-Warnungen. Viele Mitarbeiter erkennen solche betrügerischen Mails nicht und klicken auf schadhafte Links oder Anhänge. In der Folge kommt es zu Datendiebstahl oder Malware-Infektionen. Untersuchungen zeigen, dass ein Großteil des Personals gefährdet ist: So haben in einer Studie 88 % der Healthcare-Mitarbeiter eine Phishing-Mail geöffnet​
+    getastra.com
+    . Gleichzeitig gaben 36 % der befragten Gesundheitseinrichtungen an, keine Phishing-Tests durchzuführen, und 24 % der US-Beschäftigten im Gesundheitswesen hatten keine Security-Awareness-Schulung erhalten​
+    getastra.com
+    – ein großes Risiko für Kliniken.
+
+Datenschutz & DSGVO/HIPAA-Compliance
+
+    Zielgruppe: Alle Krankenhaus- und Pflegeeinrichtungsmitarbeiter, die mit Patientendaten umgehen. Pflegekräfte und Ärzte dokumentieren Behandlungen und dürfen sensible Gesundheitsdaten nicht unbedacht weitergeben. Verwaltungsmitarbeiter (Patientenverwaltung, Abrechnung, Archiv) verarbeiten Personaldaten, Versicherungsinformationen etc. IT-Abteilungen müssen technisch gewährleisten, dass Datenschutzrichtlinien umgesetzt werden – auch sie profitieren von Schulungen, um aktuelle Datenschutzanforderungen (z. B. Verschlüsselung, Berechtigungen) zu kennen.
+
+    Problem: Im Gesundheitswesen fallen hochsensible Daten an (Patientenhistorien, Diagnosen, Medikationspläne). Fehlerhafter Umgang damit – etwa unbefugtes Weitergeben, unsachgemäße Speicherung oder mangelnde Absicherung – gefährdet die Privatsphäre der Patienten und kann rechtliche Konsequenzen haben. Sowohl die europäische DSGVO als auch US-HIPAA schreiben einen sorgsamen Umgang mit Patientendaten vor; Verstöße führen zu erheblichen Strafen. So verlangt die DSGVO organisatorische Maßnahmen, um Risiken für personenbezogene Daten zu minimieren, wozu Mitarbeiterschulungen als essenzielle Maßnahme zählen​
+    datenschutz-praxis.de
+    ​
+    datenschutz-praxis.de
+    . Auch der HIPAA Security Rule nach müssen Einrichtungen ein Security-Awareness-Trainingsprogramm für alle Mitarbeiter einführen​
+    hipaajournal.com
+    . Trotz dieser Vorgaben ist vielen Mitarbeitern im Alltag nicht klar, was erlaubt ist: Darf ein Arzt Befunde per privater WhatsApp versenden? Wie geht man mit neugierigen Anfragen von Kollegen oder Angehörigen um? Dürfen Patientenakten offen auf dem Stationsstützpunkt liegen? Solche Unsicherheiten führen in der Praxis immer wieder zu Datenschutzvorfällen (z. B. unverschlüsselte Übermittlung von Patientendaten, zufällige Offenlegung von Befunden).
+
+Zugriffsmanagement & Passwortrichtlinien
+
+    Zielgruppe: Alle Systemnutzer, d. h. das gesamte Personal mit IT-Zugängen, und zusätzlich diejenigen mit Administratorrechten. Pflege- und Ärzte-Team müssen verstehen, warum individuelle Accounts wichtig sind und Passwörter nicht weitergegeben werden dürfen. Verwaltungsmitarbeiter verwalten oft Patienten- oder Abrechnungssysteme und benötigen Bewusstsein für sichere Authentifizierung. IT-Abteilungen schließlich setzen Zugriffsrichtlinien um und sollten Best Practices (z. B. MFA, Role-Based Access) kennen – ihr Training kann technisch tiefer gehen.
+
+    Problem: Unsichere Authentifizierung und mangelhafte Zugangskontrollen gehören zu den häufigen Schwachstellen in Kliniken. Im Stress des Arbeitsalltags werden Passwörter leider oft geteilt oder wiederverwendet – z. B. leiht eine Pflegekraft einer Kollegin ihr Login, damit diese schnell etwas nachsehen kann, oder es existiert ein allgemeiner Stationsaccount, auf den alle zugreifen (was Audit-Trails unmöglich macht). Auch schwache Passwörter (wie „Winter2025“ oder einfache Schemas) und das Nicht-Einhalten von regelmäßigen Passwortwechseln kommen vor. Solche Nachlässigkeiten können gravierende Folgen haben: Werden Zugangsdaten kompromittiert, drohen Datendiebstahl und Manipulation von Patientendaten. Selbst HIPAA-Vorgaben konnten in der Praxis nicht völlig verhindern, dass im Gesundheitsbereich Passwörter aus Bequemlichkeit geteilt werden​
+    specopssoft.com
+    . Die Konsequenzen – von kompromittierten Patientendaten bis zu rechtlichen Verstößen – sind jedoch sehr ernst​
+    specopssoft.com
+    . Zusätzlich wächst mit zunehmender Vernetzung der Bedarf, Zugriffsrechte strikt zu verwalten: Jeder Mitarbeiter sollte nur Zugriff auf die für seine Aufgabe nötigen Daten haben (Prinzip der minimalen Berechtigung). Ohne Schulung fehlt oft das Verständnis, warum z. B. ein Arzt nicht einfach mit dem Account eines Kollegen arbeiten darf oder weshalb Multi-Faktor-Authentifizierung nötig ist („Kostet doch nur Zeit“). Auch die physische Zugangskontrolle (PC sperren, Smartcard nicht liegen lassen) fällt in diesen Bereich und wird im hektischen Klinikalltag leicht vergessen.
+
+Social Engineering & Insider Threats
+
+    Zielgruppe: Alle Mitarbeiter, da Social-Engineering-Angriffe jeden treffen können – vom Klinikgeschäftsführer bis zur Stationshilfe. Besonders im Visier stehen jedoch häufig Verwaltungs- oder IT-Mitarbeiter (die Zugang zu vielen sensiblen Daten haben) und medizinisches Personal, das in der Regel hilfsbereit und vertrauensvoll handelt, was Angreifer auszunutzen versuchen. Insider-Bedrohungen (absichtliche oder unabsichtliche Schadhandlungen durch eigene Mitarbeiter) betreffen v. a. Führungskräfte und IT-Sicherheitsverantwortliche, die solche Fälle erkennen und verhindern müssen. Jedoch sollte auch reguläres Personal sensibilisiert sein, ungewöhnliches Verhalten von Kollegen oder Fremdpersonen zu melden.
+
+    Problem: Social Engineering gilt als größte Sicherheitslücke – der Mensch ist oft der „schwächste Punkt“ in der Sicherheitskette. Im hektischen Klinikalltag, der auf Vertrauen und Teamwork basiert, können Angreifer dies ausnutzen: Beispielsweise schleust sich jemand als „Techniker“ oder Lieferant in ein Krankenhaus ein und erhält durch freundliches Auftreten Zugang zu sensiblen Bereichen (klassisches Tailgating). Oder ein Unbekannter ruft im Pflegeheim an und gibt sich als Verwandter aus, um an vertrauliche Informationen zu gelangen. Auch Telefon- und E-Mail-Betrugsmaschen („Ich bin vom IT-Support, wir haben ein Problem mit Ihrem Rechner, bitte installieren Sie xy“) fallen darunter. Gleichzeitig existiert das Risiko interner Vorfälle – sei es ein frustrierter Mitarbeiter, der absichtlich Daten abzieht, oder schlicht Nachlässigkeit, z. B. ein Arzt, der neugierig in den Akten prominenter Patienten schnüffelt. Studien zeigen, dass viele Organisationen interne Risiken höher einschätzen als externe: 66 % der Gesundheitsorganisationen glauben, dass interne Angriffe oder Fehler wahrscheinlicher sind als externe Hackerangriffe​
+    getastra.com
+    . Umso wichtiger ist es, Mitarbeiter zu schulen, Social-Engineering-Tricks zu durchschauen und auch auf firmeninterne Unregelmäßigkeiten zu achten, ohne jedoch ein Klima des Misstrauens zu schaffen.
+Sicherer Umgang mit Medizingeräten & IoT-Geräten
+
+    Zielgruppe: Medizinisches Personal und Technikteams. Ärzte und Pflegekräfte bedienen täglich medizinische Geräte (Infusionspumpen, Patientenmonitore, Röntgensysteme etc.) und sollten grundlegende Sicherheitsregeln dafür kennen. Biomedizinische Technik/Medizintechnik-Abteilungen sind verantwortlich für Wartung und Konfiguration dieser Geräte und benötigen tiefgreifendes Wissen über deren Absicherung. Auch IT-Abteilungen sind involviert, da immer mehr Medizingeräte als IoT-Geräte im Krankenhausnetz hängen (z. B. vernetzte Implantatprogrammierer, smarte Betten, Wearables der Patienten).
+
+    Problem: Moderne Kliniken nutzen zahlreiche vernetzte Medizingeräte, was enorme Vorteile bringt, aber auch neue Sicherheitsrisiken. Viele Geräte laufen mit veralteter Software oder Standardpasswörtern, da Updates komplex sein können oder während 24/7-Betrieb schwer planbar sind. Studien zeigen, dass ein durchschnittliches Medizingerät 6 Schwachstellen aufweist und über 60 % dieser Geräte schon am Ende ihres Lebenszyklus sind (d.h. keine Sicherheitsupdates mehr erhalten)​
+    getastra.com
+    . Diese Verwundbarkeiten können Angreifer ausnutzen, um in das Kliniknetz einzudringen oder die Funktion der Geräte zu stören. Besonders Ransomware-Attacken haben in der Vergangenheit Medizingeräte lahmgelegt (z. B. der WannaCry-Vorfall 2017, der im britischen NHS tausende Geräte verschlüsselte und einen Schaden von rund 100 Mio. US-Dollar verursachte​
+    getastra.com
+    ). Wenn lebenswichtige Monitore oder Pumpen ausfallen, sind Patienten unmittelbar gefährdet. Tatsächlich berichteten fast 70 % der befragten Gesundheitsorganisationen, dass Ransomware-Angriffe bei ihnen zu längeren Krankenhausaufenthalten oder Verzögerungen bei Eingriffen geführt haben​
+    getastra.com
+    – eine direkte Auswirkung von IT-Sicherheit auf die Patientenversorgung. Zusätzlich drohen Datenlecks über unsichere IoT-Geräte (z. B. wenn ein vernetztes Medizinprodukt Patientendaten unverschlüsselt überträgt). Das Problem: Medizinisches Personal konzentriert sich primär auf die klinische Funktion der Geräte und ist sich der Cyber-Risiken oft nicht bewusst. Ebenso sind Technik-Teams stark ausgelastet und könnten Sicherheitskonfigurationen übersehen. Es braucht also gezielte Aufklärung, um den sicheren Betrieb medizintechnischer und IoT-Systeme zu gewährleisten.
+
+Reaktion auf Cyberangriffe
+
+    Zielgruppe: Quer durch die Organisation. IT-Sicherheits- und Administrations-Teams stehen an vorderster Front, wenn es um die technische Reaktion auf Angriffe (wie Ransomware oder Datenlecks) geht – sie benötigen intensive Übungen. Klinikleitung und Verwaltung müssen im Ernstfall Entscheidungen treffen (Kommunikation, ggf. Abschaltung von Systemen, Informierung von Behörden) und profitieren von Planspielen. Aber auch medizinisches Personal und Pflegepersonal sollten vorbereitet sein: Bei einem Cyberangriff (z. B. Ausfall des IT-Systems durch Ransomware) müssen sie wissen, wie sie weiterarbeiten (Notfallpläne, Dokumentation auf Papier) und an wen sie sich wenden. Jeder Mitarbeiter sollte zudem wissen, wie ein Sicherheitsvorfall zu melden ist.
+
+    Problem: Trotz aller Prävention kann es zum Ernstfall kommen – ein Cyberangriff legt Systeme lahm oder Daten gelangen nach außen. Krankenhäuser waren in den letzten Jahren vielfach Opfer schwerer Ransomware-Attacken. Laut Branchenstatistiken zielten 74 % der Ransomware-Angriffe direkt auf Krankenhäuser und 2020 wurden weltweit rund 560 Gesundheitseinrichtungen Opfer solcher Attacken​
+    getastra.com
+    . Die Folgen sind dramatisch: Operationen müssen verschoben werden, Patienten umverlegt, es entsteht hoher finanzieller Schaden. Ein Beispiel ist der WannaCry-Angriff, der im britischen Gesundheitsdienst NHS massive IT-Ausfälle verursachte – neben dem finanziellen Verlust von ~100 Mio. $​
+    getastra.com
+    waren tausende Termine und Eingriffe betroffen. Oft sind Einrichtungen schlecht vorbereitet auf solche Notfälle. Notfallpläne existieren zwar auf dem Papier, wurden aber nie praktisch geübt. Im Ernstfall handeln Mitarbeiter dann unsicher oder verspätet – etwa zögern sie, das Management zu informieren, oder schalten betroffene Computer nicht schnell genug vom Netz. Auch die Kommunikation intern und extern (Behörden, Presse) verläuft ohne Training chaotisch. Jede Minute zählt jedoch, um Schaden zu begrenzen und gesetzliche Meldefristen einzuhalten (z. B. binnen 72 Stunden Meldung einer Datenschutzverletzung nach DSGVO). Daher sind praktische Notfallübungen unabdingbar, um im Ernstfall routiniert zu reagieren.

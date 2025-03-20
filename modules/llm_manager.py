@@ -6,6 +6,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_ollama.llms import OllamaLLM
 from langchain_core.runnables import RunnablePassthrough
 from langchain.callbacks.base import BaseCallbackHandler
+from langchain.chains import LLMChain
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

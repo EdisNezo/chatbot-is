@@ -588,3 +588,31 @@ class DialogManager:
             logger.info(f"E-Learning course saved: {output_path}")
         except Exception as e:
             logger.error(f"Error saving e-learning course: {e}")
+            
+            
+    def fix_dialog_manager():
+        """
+        Update the generate_retrieval_queries function in dialog_manager.py
+        """
+        file_path = "modules/dialog_manager.py"
+        
+        with open(file_path, 'r') as file:
+            content = file.read()
+        
+        # Fix the missing return statement in generate_retrieval_queries
+        if "def generate_retrieval_queries" in content and "return queries" not in content:
+            # Find the function definition
+            import re
+            pattern = r"(def generate_retrieval_queries.*?queries\.extend\(specific_queries\)\s*)(    \n|$)"
+            replacement = r"\1\n    return queries\n\2"
+            
+            # Apply the fix
+            fixed_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+            
+            # Write the fixed content
+            with open(file_path, 'w') as file:
+                file.write(fixed_content)
+            
+            print("Fixed dialog_manager.py - added missing return statement")
+        else:
+            print("No fix needed for dialog_manager.py or fix already applied")

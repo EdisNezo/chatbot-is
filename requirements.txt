@@ -1,0 +1,12 @@
+torch
+langchain
+langchain-community
+Flask
+Flask-SocketIO
+Ollama
+huggingface-hub
+transformers
+chromadb
+python-dotenv
+eventlet
+gunicorn

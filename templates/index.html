@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>E-Learning-Kurs-Generator für Informationssicherheit</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/styles.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+    />
+  </head>
+  <body>
+    <div class="container-fluid">
+      <div class="row py-3">
+        <div class="col-12">
+          <h1 class="text-center">
+            E-Learning-Kurs-Generator für Informationssicherheit
+          </h1>
+          <h4 class="text-center text-muted mb-4">
+            Erstellen Sie maßgeschneiderte Schulungsinhalte für
+            Informationssicherheit
+          </h4>
+        </div>
+      </div>
+
+      <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 sidebar">
+          <div class="card">
+            <div class="card-header">
+              <h5>Aktionen</h5>
+            </div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="formatSelect" class="form-label"
+                  >Ausgabeformat wählen</label
+                >
+                <select id="formatSelect" class="form-select">
+                  <option value="txt">Text (.txt)</option>
+                  <option value="json">JSON (.json)</option>
+                  <option value="html">HTML (.html)</option>
+                </select>
+              </div>
+
+              <button id="reindexBtn" class="btn btn-warning w-100 mb-3">
+                <i class="bi bi-database-gear"></i> Dokumente neu indexieren
+              </button>
+
+              <button
+                id="resetBtn"
+                class="btn btn-secondary w-100 mb-3"
+                disabled
+              >
+                <i class="bi bi-arrow-repeat"></i> Neuen E-Learning-Kurs
+                erstellen
+              </button>
+
+              <div class="card bg-light mt-3">
+                <div class="card-body text-center">
+                  <h6 class="card-title">Generierte Skripte</h6>
+                  <h2 id="scriptCounter">0</h2>
+                  <div
+                    id="requirementBadge"
+                    class="badge bg-secondary mt-2 d-none"
+                  >
+                    ✅ Anforderung erfüllt: 5 verschiedene Skripte wurden
+                    generiert!
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="col-md-9">
+          <div class="row">
+            <!-- Chat Area -->
+            <div class="col-lg-5">
+              <div class="card chat-card">
+                <div
+                  class="card-header d-flex justify-content-between align-items-center"
+                >
+                  <h5>Konversation mit dem Chatbot</h5>
+                  <div
+                    class="spinner-border text-primary d-none"
+                    id="chatSpinner"
+                    role="status"
+                  >
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+                <div class="card-body chat-container" id="chatContainer">
+                  <!-- Chat messages will be inserted here -->
+                </div>
+                <div class="card-footer">
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      id="userInput"
+                      class="form-control"
+                      placeholder="Ihre Antwort..."
+                      disabled
+                    />
+                    <button id="sendBtn" class="btn btn-primary" disabled>
+                      <i class="bi bi-send"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Preview Area -->
+            <div class="col-lg-7">
+              <div class="card preview-card">
+                <div
+                  class="card-header d-flex justify-content-between align-items-center"
+                >
+                  <h5>Vorschau des generierten Skripts</h5>
+                  <div>
+                    <button
+                      id="downloadBtn"
+                      class="btn btn-success btn-sm"
+                      disabled
+                    >
+                      <i class="bi bi-download"></i> Herunterladen
+                    </button>
+                    <button
+                      id="refreshPreviewBtn"
+                      class="btn btn-outline-primary btn-sm ms-2"
+                      disabled
+                    >
+                      <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="card-body preview-container" id="previewContainer">
+                  <div class="text-center text-muted py-5">
+                    <i class="bi bi-file-earmark-text display-1"></i>
+                    <p class="mt-3">
+                      Hier wird die Vorschau des generierten Skripts angezeigt,
+                      sobald es erstellt wurde.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay d-none">
+      <div class="spinner-border text-light" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <div class="mt-3 text-light" id="loadingMessage">Verarbeite...</div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div
+      class="modal fade"
+      id="alertModal"
+      tabindex="-1"
+      aria-labelledby="alertModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="alertModalLabel">Information</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body" id="alertModalBody">
+            <!-- Modal content will be inserted here -->
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-bs-dismiss="modal"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  </body>
+</html>

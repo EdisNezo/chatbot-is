@@ -1,0 +1,8 @@
+{
+    "documents_dir": "./data/documents",
+    "vectorstore_dir": "./data/vectorstore",
+    "output_dir": "./data/output",
+    "model_name": "llama3.1",
+    "chunk_size": 1000,
+    "chunk_overlap": 200
+  }

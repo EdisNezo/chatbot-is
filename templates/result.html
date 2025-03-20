@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      {{ script_title }} - E-Learning-Kurs zur Informationssicherheit
+    </title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        padding: 20px;
+      }
+      .script-container {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+        margin-bottom: 30px;
+      }
+      .script-header {
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+      }
+      .section {
+        margin-bottom: 30px;
+      }
+      .section-title {
+        background-color: #f8f9fa;
+        padding: 10px 15px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .section-content {
+        line-height: 1.6;
+        text-align: justify;
+      }
+      .script-footer {
+        border-top: 1px solid #dee2e6;
+        margin-top: 25px;
+        padding-top: 15px;
+        font-style: italic;
+      }
+      .action-buttons {
+        position: sticky;
+        top: 20px;
+        z-index: 100;
+      }
+      pre {
+        background-color: #f6f8fa;
+        border-radius: 6px;
+        padding: 16px;
+        overflow: auto;
+      }
+      code {
+        font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+        font-size: 85%;
+      }
+      @media print {
+        .no-print {
+          display: none;
+        }
+        body {
+          background-color: white;
+          padding: 0;
+        }
+        .script-container {
+          box-shadow: none;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row mb-4">
+        <div class="col-md-8">
+          <h1>{{ script_title }}</h1>
+          <p class="lead">{{ script_description }}</p>
+        </div>
+        <div class="col-md-4">
+          <div class="action-buttons no-print d-flex justify-content-end gap-2">
+            <button class="btn btn-primary" onclick="window.print()">
+              <i class="bi bi-printer"></i> Drucken
+            </button>
+            <a href="{{ download_url }}" class="btn btn-success">
+              <i class="bi bi-download"></i> Herunterladen
+            </a>
+            <a href="/" class="btn btn-secondary">
+              <i class="bi bi-arrow-left"></i> Zurück
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="script-container">
+        <div class="script-header">
+          <h2>{{ script_title }}</h2>
+          <p>{{ script_description }}</p>
+          <div class="d-flex justify-content-between">
+            <span><strong>Organisation:</strong> {{ organization }}</span>
+            <span><strong>Zielgruppe:</strong> {{ audience }}</span>
+            <span><strong>Erstellt am:</strong> {{ created_date }}</span>
+          </div>
+        </div>
+
+        <div class="script-content">
+          {% for section in sections %}
+          <div class="section">
+            <div class="section-title">{{ section.title }}</div>
+            <div class="section-content">
+              {% if format == 'html' %} {{ section.content|safe }} {% else %} {{
+              section.content|nl2br }} {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="script-footer">
+          <p>
+            Sie können das Wissen jetzt bei Ihrer Arbeit umsetzen. Dadurch
+            steigern Sie das Sicherheitsbewusstsein in {{ organization }} und
+            Sie schützen sich, Ihre Kolleginnen und Kollegen und die gesamte
+            Organisation.
+          </p>
+          <p>Gut gemacht!</p>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

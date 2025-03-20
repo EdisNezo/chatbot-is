@@ -1,0 +1,127 @@
+body {
+  background-color: #f8f9fa;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.sidebar {
+  margin-bottom: 20px;
+}
+
+.chat-card,
+.preview-card {
+  height: 80vh;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.chat-container {
+  height: calc(80vh - 130px);
+  overflow-y: auto;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-container {
+  height: calc(80vh - 60px);
+  overflow-y: auto;
+  padding: 15px;
+}
+
+.message {
+  max-width: 80%;
+  margin-bottom: 15px;
+  padding: 10px 15px;
+  border-radius: 10px;
+  position: relative;
+}
+
+.message-user {
+  align-self: flex-end;
+  background-color: #007bff;
+  color: white;
+  border-bottom-right-radius: 0;
+}
+
+.message-assistant {
+  align-self: flex-start;
+  background-color: #e9ecef;
+  color: #212529;
+  border-bottom-left-radius: 0;
+}
+
+.message-time {
+  font-size: 0.7em;
+  opacity: 0.7;
+  margin-top: 5px;
+  text-align: right;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+/* Preview content styling */
+.preview-text {
+  white-space: pre-wrap;
+  font-family: monospace;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+  border: 1px solid #dee2e6;
+}
+
+.preview-html {
+  padding: 15px;
+  background-color: white;
+  border-radius: 5px;
+  border: 1px solid #dee2e6;
+}
+
+/* Section headers in preview */
+.preview-text h1,
+.preview-text h2,
+.preview-text h3 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .chat-card,
+  .preview-card {
+    height: 60vh;
+  }
+
+  .chat-container {
+    height: calc(60vh - 130px);
+  }
+
+  .preview-container {
+    height: calc(60vh - 60px);
+  }
+}
+
+/* Typescript syntax highlighting for code blocks */
+pre {
+  background-color: #f6f8fa;
+  border-radius: 6px;
+  padding: 16px;
+  overflow: auto;
+}
+
+code {
+  font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+  font-size: 85%;
+}

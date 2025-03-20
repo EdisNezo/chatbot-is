@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 import re
+from langchain.docstore.document import Document  # Add this if missing
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

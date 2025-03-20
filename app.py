@@ -90,8 +90,18 @@ def send_message():
         # Add user message to conversation history
         active_conversations[session_id]['messages'].append({"role": "user", "content": user_input})
         
-        # Process user input
-        bot_response = generator.process_user_input(user_input)
+        # Process user input with detailed error handling
+        try:
+            bot_response = generator.process_user_input(user_input)
+            
+            # Ensure bot_response is a string
+            if not isinstance(bot_response, str):
+                logger.error(f"Bot response is not a string: {type(bot_response)}")
+                bot_response = f"Es ist ein Fehler aufgetreten. Die Antwort hat ein unerwartetes Format: {type(bot_response)}"
+                
+        except Exception as inner_e:
+            logger.error(f"Error in process_user_input: {inner_e}")
+            bot_response = "Entschuldigung, bei der Verarbeitung Ihrer Nachricht ist ein Fehler aufgetreten."
         
         # Add bot response to conversation history
         active_conversations[session_id]['messages'].append({"role": "assistant", "content": bot_response})

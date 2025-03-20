@@ -1,73 +1,66 @@
 import logging
+import os
 from typing import List, Dict, Any, Set
 import torch
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
+from langchain_community.vectorstores import FAISS
+import faiss
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class VectorStoreManager:
-    """
-    Manages the vector database for document retrieval.
-    """
+    """Manages the vector database for document retrieval."""
 
-    def __init__(self, persist_directory: str = "./data/chroma_db"):
-        """
-        Initializes the VectorStoreManager.
-
-        Args:
-            persist_directory: Directory for storing the vector database
-        """
+    def __init__(self, persist_directory: str = "./data/faiss_index"):
+        """Initialize the VectorStoreManager."""
         self.persist_directory = persist_directory
-
-        # Initialize the embedding model
+        
+        # Initialize the embedding model (same as before)
         self.embeddings = HuggingFaceEmbeddings(
             model_name="BAAI/bge-small-en-v1.5",
             model_kwargs={'device': 'cuda' if torch.cuda.is_available() else 'cpu'},
             encode_kwargs={'normalize_embeddings': True}
         )
-
+        
         self.vectorstore = None
 
     def create_vectorstore(self, documents: List[Document]) -> None:
-        """
-        Create a vector database from the given documents.
-
-        Args:
-            documents: List of Document objects
-        """
-        # Create a new vector database
-        self.vectorstore = Chroma.from_documents(
-            documents=documents,
-            embedding=self.embeddings,
-            persist_directory=self.persist_directory,
-            collection_metadata={"hnsw:space": "cosine"}
-        )
-
-        # Persist the database
-        self.vectorstore.persist()
-
-        logger.info(f"Vector database created with {len(documents)} documents")
+        try:
+            # Create the FAISS index
+            self.vectorstore = FAISS.from_documents(
+                documents=documents,
+                embedding=self.embeddings
+            )
+            
+            # Save to disk
+            self.vectorstore.save_local(self.persist_directory)
+            
+            logger.info(f"Vector database created and saved to {self.persist_directory}")
+        except Exception as e:
+            logger.error(f"Error creating vector database: {e}")
+            raise
 
     def load_vectorstore(self) -> bool:
-        """
-        Load an existing vector database.
-
-        Returns:
-            True if the database was loaded, False otherwise
-        """
+        """Load an existing vector database."""
         try:
-            # Try to load the vector database
-            self.vectorstore = Chroma(
-                persist_directory=self.persist_directory,
-                embedding_function=self.embeddings
-            )
-
-            logger.info("Existing vector database loaded")
-            return True
+            # Check if index files exist
+            index_file = os.path.join(self.persist_directory, "index.faiss")
+            docstore_file = os.path.join(self.persist_directory, "index.pkl")
+            
+            if os.path.exists(index_file) and os.path.exists(docstore_file):
+                # Load the FAISS index
+                self.vectorstore = FAISS.load_local(
+                    folder_path=self.persist_directory,
+                    embeddings=self.embeddings
+                )
+                logger.info("Existing FAISS vector database loaded")
+                return True
+            else:
+                logger.warning(f"No existing FAISS index found at {self.persist_directory}")
+                return False
         except Exception as e:
             logger.error(f"Error loading vector database: {e}")
             return False

@@ -378,29 +378,29 @@ class LLMManager:
         return corrected_content.strip()
 
     def extract_key_information(self, section_type: str, user_response: str) -> List[str]:
-        """
-        Extracts key information from the user's response.
-
-        Args:
-            section_type: Type of section (e.g., "learning_objectives")
-            user_response: User's response
-
-        Returns:
-            List of key terms
-        """
-        response = self.chains["key_info_extraction"].run({
-            "section_type": section_type,
-            "user_response": user_response
-        })
-
-        # Process the response into a list
-        key_concepts = [
-            concept.strip()
-            for concept in response.strip().split("\n")
-            if concept.strip()
-        ]
-
-        return key_concepts
+        """Extracts key information from the user's response."""
+        try:
+            response = self.chains["key_info_extraction"].run({
+                "section_type": section_type,
+                "user_response": user_response
+            })
+            
+            # Ensure response is a string
+            if not isinstance(response, str):
+                logger.warning(f"LLM returned non-string response: {type(response)}")
+                return []  # Return empty list as fallback
+            
+            # Process the response into a list
+            key_concepts = [
+                concept.strip()
+                for concept in response.strip().split("\n")
+                if concept.strip()
+            ]
+            
+            return key_concepts
+        except Exception as e:
+            logger.error(f"Error extracting key information: {e}")
+            return []  # Return empty list as fallback
 
     def advanced_hallucination_detection(self, content: str) -> Dict[str, Any]:
         """

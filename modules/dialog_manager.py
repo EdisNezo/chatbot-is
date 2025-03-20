@@ -228,68 +228,82 @@ class DialogManager:
         Returns:
             List of retrieval queries
         """
-        # Base query from the section title
-        base_query = section_title
+        try:
+            # Base query from the section title
+            base_query = section_title
 
-        # Context-specific queries
-        organization = self.conversation_state["context_info"].get(
-            "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
-        audience = self.conversation_state["context_info"].get(
-            "Welche Mitarbeitergruppen sollen geschult werden?", "")
-        compliance = self.conversation_state["context_info"].get(
-            "Gibt es spezifische Compliance-Anforderungen oder Branchenstandards, die berücksichtigt werden müssen?", "")
+            # Context-specific queries
+            organization = self.conversation_state["context_info"].get(
+                "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
+            audience = self.conversation_state["context_info"].get(
+                "Welche Mitarbeitergruppen sollen geschult werden?", "")
+            compliance = self.conversation_state["context_info"].get(
+                "Gibt es spezifische Compliance-Anforderungen oder Branchenstandards, die berücksichtigt werden müssen?", "")
 
-        # Industry-specific query
-        industry_query = f"Informationssicherheit für {organization}"
+            # Industry-specific query
+            industry_query = f"Informationssicherheit für {organization}"
 
-        # Improved section-specific query templates according to the example script
-        section_templates = {
-            "threat_awareness": f"Bedrohungsbewusstsein Kontext Informationssicherheit {organization}",
-            "threat_identification": f"Merkmale Bedrohungserkennung Informationssicherheit {organization}",
-            "threat_impact_assessment": f"Konsequenzen Bedrohungen Informationssicherheit {organization}",
-            "tactic_choice": f"Handlungsoptionen Sicherheitsmaßnahmen {organization}",
-            "tactic_justification": f"Begründung Rechtfertigung Sicherheitsmaßnahmen {organization}",
-            "tactic_mastery": f"Konkrete Schritte Umsetzung Sicherheitsmaßnahmen {organization}",
-            "tactic_check_follow_up": f"Anschlusshandlungen Nach Sicherheitsvorfall {organization}"
-        }
+            # Improved section-specific query templates according to the example script
+            section_templates = {
+                "threat_awareness": f"Bedrohungsbewusstsein Kontext Informationssicherheit {organization}",
+                "threat_identification": f"Merkmale Bedrohungserkennung Informationssicherheit {organization}",
+                "threat_impact_assessment": f"Konsequenzen Bedrohungen Informationssicherheit {organization}",
+                "tactic_choice": f"Handlungsoptionen Sicherheitsmaßnahmen {organization}",
+                "tactic_justification": f"Begründung Rechtfertigung Sicherheitsmaßnahmen {organization}",
+                "tactic_mastery": f"Konkrete Schritte Umsetzung Sicherheitsmaßnahmen {organization}",
+                "tactic_check_follow_up": f"Anschlusshandlungen Nach Sicherheitsvorfall {organization}"
+            }
 
-        # Use the corresponding template if available
-        section_query = section_templates.get(section_id, "")
+            # Use the corresponding template if available
+            section_query = section_templates.get(section_id, "")
 
-        # Add compliance-specific query if available
-        compliance_query = ""
-        if compliance and compliance.strip():
-            compliance_query = f"Informationssicherheit {compliance} {organization}"
+            # Add compliance-specific query if available
+            compliance_query = ""
+            if compliance and compliance.strip():
+                compliance_query = f"Informationssicherheit {compliance} {organization}"
 
-        # Specific queries for certain sections
-        specific_queries = []
-        if section_id == "threat_awareness":
-            specific_queries.append(f"Alltägliche Situationen Informationssicherheit {organization}")
-        elif section_id == "threat_identification":
-            specific_queries.append(f"Phishing Erkennung Merkmale {organization}")
-        elif section_id == "threat_impact_assessment":
-            specific_queries.append(f"Konsequenzen Datenverlust Cyberangriff {organization}")
-        elif section_id == "tactic_choice":
-            specific_queries.append(f"Schutzmaßnahmen Verdächtige E-Mails {organization}")
-        elif section_id == "tactic_justification":
-            specific_queries.append(f"Warum E-Mail-Sicherheit wichtig {organization}")
-        elif section_id == "tactic_mastery":
-            specific_queries.append(f"Schritte Überprüfung Verdächtige E-Mails {organization}")
-        elif section_id == "tactic_check_follow_up":
-            specific_queries.append(f"Meldeverfahren Informationssicherheitsvorfälle {organization}")
+            # Specific queries for certain sections
+            specific_queries = []
+            if section_id == "threat_awareness":
+                specific_queries.append(f"Alltägliche Situationen Informationssicherheit {organization}")
+            elif section_id == "threat_identification":
+                specific_queries.append(f"Phishing Erkennung Merkmale {organization}")
+            elif section_id == "threat_impact_assessment":
+                specific_queries.append(f"Konsequenzen Datenverlust Cyberangriff {organization}")
+            elif section_id == "tactic_choice":
+                specific_queries.append(f"Schutzmaßnahmen Verdächtige E-Mails {organization}")
+            elif section_id == "tactic_justification":
+                specific_queries.append(f"Warum E-Mail-Sicherheit wichtig {organization}")
+            elif section_id == "tactic_mastery":
+                specific_queries.append(f"Schritte Überprüfung Verdächtige E-Mails {organization}")
+            elif section_id == "tactic_check_follow_up":
+                specific_queries.append(f"Meldeverfahren Informationssicherheitsvorfälle {organization}")
 
-        # Create the list of queries
-        queries = [base_query, industry_query]
+            # Create the list of queries
+            queries = [base_query, industry_query]
 
-        if section_query:
-            queries.append(section_query)
+            if section_query:
+                queries.append(section_query)
 
-        if compliance_query:
-            queries.append(compliance_query)
+            if compliance_query:
+                queries.append(compliance_query)
 
-        queries.extend(specific_queries)
-        
-        return queries
+            queries.extend(specific_queries)
+            
+            # Log the queries for debugging
+            logger.info(f"Generated {len(queries)} retrieval queries for section '{section_id}'")
+            
+            # Validate that queries is a list
+            if not isinstance(queries, list):
+                logger.error(f"queries is not a list, got {type(queries)}: {queries}")
+                return []  # Return empty list as fallback
+                
+            return queries
+            
+        except Exception as e:
+            # Log the error and return an empty list as fallback
+            logger.error(f"Error generating retrieval queries for section '{section_id}': {e}")
+            return []  # Always return a list, even if empty, to prevent type errors
 
     def process_user_response(self, response: str) -> str:
         """
@@ -427,12 +441,7 @@ class DialogManager:
             return "Vielen Dank für Ihre Antwort. Könnten Sie vielleicht noch etwas konkreter werden? Beispiele aus Ihrem Arbeitsalltag wären besonders hilfreich."
 
     def _generate_section_content(self, section_id: str) -> None:
-        """
-        Generates the content for a section and performs quality checks.
-
-        Args:
-            section_id: ID of the section
-        """
+        """Generates the content for a section and performs quality checks."""
         try:
             # Get the user's response
             user_response = self.conversation_state["section_responses"].get(section_id, "")
@@ -440,7 +449,7 @@ class DialogManager:
                 logger.error(f"No user response found for section {section_id}")
                 self.conversation_state["generated_content"][section_id] = f"Inhalt für {section_id} konnte nicht generiert werden. Keine Antwort vorhanden."
                 return
-                
+                    
             section = self.template_manager.get_section_by_id(section_id)
             if not section:
                 logger.error(f"Section {section_id} not found in template")
@@ -452,6 +461,11 @@ class DialogManager:
                 section_type=section.get("type", "generic"),
                 user_response=user_response
             )
+            
+            # Ensure key_concepts is a list
+            if not isinstance(key_concepts, list):
+                logger.error(f"key_concepts is not a list, got {type(key_concepts)}: {key_concepts}")
+                key_concepts = []
 
             # Generate retrieval queries based on key concepts
             retrieval_queries = [
@@ -460,7 +474,16 @@ class DialogManager:
             ]
 
             # Add section-specific queries
-            retrieval_queries.extend(self.generate_retrieval_queries(section["title"], section_id))
+            section_queries = self.generate_retrieval_queries(section["title"], section_id)
+            
+            # Ensure section_queries is a list
+            if not isinstance(section_queries, list):
+                logger.error(f"section_queries is not a list, got {type(section_queries)}: {section_queries}")
+                section_queries = []
+                
+            retrieval_queries.extend(section_queries)
+
+        
 
             # Get relevant documents
             retrieved_docs = self.vector_store_manager.retrieve_with_multiple_queries(

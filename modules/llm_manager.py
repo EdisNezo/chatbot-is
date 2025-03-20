@@ -270,23 +270,33 @@ class LLMManager:
         Returns:
             Generated question
         """
-        max_context_length = 1000
-        if len(context_text) > max_context_length:
-            context_text = context_text[:max_context_length] + "..."
 
         try:
-            response = self.chains["question_generation"].run({
-                "section_title": section_title,
-                "section_description": section_description,
-                "context_text": context_text,
-                "organization": organization,
-                "audience": audience
-            })
+            # Format the prompt
+            prompt = self.prompts["question_generation"].format(
+                section_title=section_title,
+                section_description=section_description,
+                context_text=context_text,
+                organization=organization,
+                audience=audience,
+                user_response="",  # Not needed for question generation
+                duration=""  # Not needed for question generation
+            )
+            
+            # Call the LLM
+            response = self.llm(prompt)
+            
+            # Validate response type
+            if not isinstance(response, str):
+                logger.error(f"LLM returned non-string response for question generation: {type(response)}")
+                # Provide a fallback question based on section title
+                return f"Können Sie mir mehr über {section_title} in Ihrem Arbeitsalltag erzählen?"
+                
             return response.strip()
         except Exception as e:
             logger.error(f"Error during question generation: {e}")
-            # Fallback on error
-            return f"Können Sie mir etwas über {section_title} in Ihrem Unternehmen erzählen?"
+            # Fallback question
+            return f"Können Sie mir mehr über {section_title} in Ihrem Arbeitsalltag erzählen?"
 
     def generate_content(self, section_title: str, section_description: str,
                         user_response: str, organization: str, audience: str,
@@ -378,25 +388,38 @@ class LLMManager:
         return corrected_content.strip()
 
     def extract_key_information(self, section_type: str, user_response: str) -> List[str]:
-        """Extracts key information from the user's response."""
+        """
+        Extracts key information from the user's response.
+        
+        Returns:
+            List of key terms as strings
+        """
         try:
-            response = self.chains["key_info_extraction"].run({
-                "section_type": section_type,
-                "user_response": user_response
-            })
+            # Format the prompt
+            prompt = self.prompts["key_info_extraction"].format(
+                section_type=section_type,
+                user_response=user_response
+            )
             
-            # Ensure response is a string
+            # Call the LLM
+            response = self.llm(prompt)
+            
+            # Validate response type
             if not isinstance(response, str):
-                logger.warning(f"LLM returned non-string response: {type(response)}")
+                logger.error(f"LLM returned non-string response for key extraction: {type(response)}")
                 return []  # Return empty list as fallback
-            
+                
             # Process the response into a list
-            key_concepts = [
-                concept.strip()
-                for concept in response.strip().split("\n")
-                if concept.strip()
-            ]
-            
+            key_concepts = []
+            for concept in response.strip().split("\n"):
+                if concept.strip():
+                    key_concepts.append(concept.strip())
+                    
+            # Final validation
+            if not isinstance(key_concepts, list):
+                logger.error(f"Processed key_concepts is not a list: {type(key_concepts)}")
+                return []
+                
             return key_concepts
         except Exception as e:
             logger.error(f"Error extracting key information: {e}")

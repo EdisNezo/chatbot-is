@@ -315,50 +315,115 @@ class DialogManager:
         Returns:
             Next question or message
         """
-        if self.conversation_state["current_step"] == "context_gathering":
-            # Determine which context question is currently being answered
-            for question in self.context_questions:
-                if question not in self.conversation_state["context_info"]:
-                    self.conversation_state["context_info"][question] = response
-                    break
+        try:
+            # Handle context gathering phase
+            if self.conversation_state["current_step"] == "context_gathering":
+                # Determine which context question is currently being answered
+                for question in self.context_questions:
+                    if question not in self.conversation_state["context_info"]:
+                        self.conversation_state["context_info"][question] = response
+                        break
 
-        elif self.conversation_state["current_step"] == "template_navigation":
-            # Increase the question counter for the current section
-            self.conversation_state["current_section_question_count"] += 1
+                # Check if all context questions have been answered
+                all_answered = all(question in self.conversation_state["context_info"] 
+                                for question in self.context_questions)
+                
+                if all_answered:
+                    # Transition to template navigation
+                    self.conversation_state["current_step"] = "template_navigation"
+                    # Log completion of context gathering
+                    logger.info("Context gathering completed, transitioning to template navigation")
 
-            # Check if we've reached the maximum number of questions or if the answer is sufficient
-            max_questions_reached = self.conversation_state["current_section_question_count"] >= 3
+            # Handle template navigation phase
+            elif self.conversation_state["current_step"] == "template_navigation":
+                # Ensure we have a valid current section
+                current_section = self.conversation_state.get("current_section")
+                if not current_section:
+                    logger.error("Current section is None when processing response")
+                    self.conversation_state["current_step"] = "review"
+                    return "Es ist ein Problem aufgetreten. Möchten Sie den bisher erstellten E-Learning-Kurs ansehen?"
 
-            if max_questions_reached or self.is_response_adequate(response):
-                # Save the response for the current section
-                current_section = self.conversation_state["current_section"]
-                if current_section:  # Make sure current_section is not None
+                # Increase the question counter for the current section
+                self.conversation_state["current_section_question_count"] += 1
+
+                # Check if we've reached the maximum number of questions or if the answer is sufficient
+                max_questions_reached = self.conversation_state["current_section_question_count"] >= 3
+
+                if max_questions_reached or self.is_response_adequate(response):
+                    # Save the response for the current section
                     self.conversation_state["section_responses"][current_section] = response
 
-                    # Generate content for this section
-                    self._generate_section_content(current_section)
+                    try:
+                        # Generate content for this section
+                        logger.info(f"Generating content for section {current_section}")
+                        self._generate_section_content(current_section)
+                    except Exception as content_error:
+                        # Handle errors in content generation
+                        logger.error(f"Error generating content for section {current_section}: {content_error}")
+                        # Store a placeholder in case of error
+                        self.conversation_state["generated_content"][current_section] = (
+                            f"Inhalt für diesen Abschnitt konnte nicht generiert werden. "
+                            f"Bitte versuchen Sie es später erneut."
+                        )
 
+                    # Mark section as completed
                     self.conversation_state["completed_sections"].append(current_section)
 
                     # Reset the question counter for the next section
                     self.conversation_state["current_section_question_count"] = 0
+                    
+                    # Log completion of this section
+                    logger.info(f"Completed section {current_section}, moving to next section")
                 else:
-                    logger.error("Current section is None when processing response")
-            else:
-                # Request a more detailed answer
-                return self.generate_followup_question(response)
+                    # Response is not adequate, generate a follow-up question
+                    try:
+                        followup = self.generate_followup_question(response)
+                        # Ensure followup is a string
+                        if not isinstance(followup, str):
+                            logger.error(f"Follow-up question is not a string: {type(followup)}")
+                            followup = "Könnten Sie bitte etwas ausführlicher antworten? Ihre Erfahrungen sind wichtig für die Erstellung eines maßgeschneiderten Kurses."
+                        return followup
+                    except Exception as followup_error:
+                        logger.error(f"Error generating follow-up question: {followup_error}")
+                        return "Vielen Dank für Ihre Antwort. Könnten Sie vielleicht noch etwas konkreter werden? Beispiele aus Ihrem Arbeitsalltag wären besonders hilfreich."
 
-        elif self.conversation_state["current_step"] == "review":
-            # Check if the user wants to see the result
-            if any(word in response.lower() for word in ["ja", "gerne", "zeigen", "ansehen"]):
-                self.conversation_state["current_step"] = "completion"
-                return "Hier ist der entworfene E-Learning-Kurs zur Informationssicherheit basierend auf Ihren Eingaben:\n\n" + self.get_script_summary()
-            else:
-                # Ask again if the user wants to see the result
-                return "Möchten Sie den erstellten E-Learning-Kurs sehen? Bitte antworten Sie mit 'Ja' oder 'Nein'."
+            # Handle review phase
+            elif self.conversation_state["current_step"] == "review":
+                # Check if the user wants to see the result
+                if any(word in response.lower() for word in ["ja", "gerne", "zeigen", "ansehen"]):
+                    self.conversation_state["current_step"] = "completion"
+                    try:
+                        summary = self.get_script_summary()
+                        # Ensure summary is a string
+                        if not isinstance(summary, str):
+                            logger.error(f"Script summary is not a string: {type(summary)}")
+                            summary = "Leider konnte die Kurszusammenfassung nicht erstellt werden."
+                        return "Hier ist der entworfene E-Learning-Kurs zur Informationssicherheit basierend auf Ihren Eingaben:\n\n" + summary
+                    except Exception as summary_error:
+                        logger.error(f"Error generating script summary: {summary_error}")
+                        return "Es ist ein Fehler bei der Erstellung des E-Learning-Kurses aufgetreten. Bitte versuchen Sie es erneut."
+                else:
+                    # Ask again if the user wants to see the result
+                    return "Möchten Sie den erstellten E-Learning-Kurs sehen? Bitte antworten Sie mit 'Ja' oder 'Nein'."
 
-        # Determine the next question
-        return self.get_next_question()
+            # Determine the next question
+            try:
+                next_question = self.get_next_question()
+                # Ensure next_question is a string
+                if not isinstance(next_question, str):
+                    logger.error(f"Next question is not a string: {type(next_question)}")
+                    next_question = "Wie kann ich Ihnen mit Ihrem E-Learning-Kurs weiterhelfen?"
+                return next_question
+            except Exception as question_error:
+                logger.error(f"Error getting next question: {question_error}")
+                return "Wie kann ich Ihnen mit Ihrem E-Learning-Kurs zur Informationssicherheit weiterhelfen?"
+
+        except Exception as e:
+            # Catch-all error handler for the entire method
+            logger.error(f"Unexpected error in process_user_response: {e}")
+            # Provide a user-friendly message and try to continue the conversation
+            self.conversation_state["current_step"] = "template_navigation"
+            return "Es tut mir leid, bei der Verarbeitung Ihrer Antwort ist ein Fehler aufgetreten. Lassen Sie uns mit einer anderen Frage fortfahren."
 
     def is_response_adequate(self, response: str) -> bool:
         """
@@ -441,7 +506,14 @@ class DialogManager:
             return "Vielen Dank für Ihre Antwort. Könnten Sie vielleicht noch etwas konkreter werden? Beispiele aus Ihrem Arbeitsalltag wären besonders hilfreich."
 
     def _generate_section_content(self, section_id: str) -> None:
-        """Generates the content for a section and performs quality checks."""
+        """
+        Generates the content for a section and performs quality checks.
+
+        Args:
+            section_id: ID of the section
+        """
+        logger.info(f"Starting content generation for section: {section_id}")
+        
         try:
             # Get the user's response
             user_response = self.conversation_state["section_responses"].get(section_id, "")
@@ -450,93 +522,210 @@ class DialogManager:
                 self.conversation_state["generated_content"][section_id] = f"Inhalt für {section_id} konnte nicht generiert werden. Keine Antwort vorhanden."
                 return
                     
+            # Get the section details from the template
             section = self.template_manager.get_section_by_id(section_id)
             if not section:
                 logger.error(f"Section {section_id} not found in template")
                 self.conversation_state["generated_content"][section_id] = f"Inhalt für {section_id} konnte nicht generiert werden. Abschnitt nicht gefunden."
                 return
 
-            # Extract key information for retrieval
-            key_concepts = self.llm_manager.extract_key_information(
-                section_type=section.get("type", "generic"),
-                user_response=user_response
-            )
-            
-            # Ensure key_concepts is a list
-            if not isinstance(key_concepts, list):
-                logger.error(f"key_concepts is not a list, got {type(key_concepts)}: {key_concepts}")
-                key_concepts = []
-
-            # Generate retrieval queries based on key concepts
-            retrieval_queries = [
-                f"{concept} Informationssicherheit"
-                for concept in key_concepts
-            ]
-
-            # Add section-specific queries
-            section_queries = self.generate_retrieval_queries(section["title"], section_id)
-            
-            # Ensure section_queries is a list
-            if not isinstance(section_queries, list):
-                logger.error(f"section_queries is not a list, got {type(section_queries)}: {section_queries}")
-                section_queries = []
+            # STEP 1: Extract key information for retrieval
+            try:
+                # Get key concepts from user response
+                key_concepts = self.llm_manager.extract_key_information(
+                    section_type=section.get("type", "generic"),
+                    user_response=user_response
+                )
                 
-            retrieval_queries.extend(section_queries)
+                # Defensive type checking - ensure key_concepts is a list
+                if not isinstance(key_concepts, list):
+                    logger.error(f"key_concepts is not a list, got {type(key_concepts)}: {key_concepts}")
+                    # Convert to list if possible, or use empty list as fallback
+                    if isinstance(key_concepts, str):
+                        key_concepts = [key_concepts]
+                    elif isinstance(key_concepts, (int, float)):
+                        logger.error(f"Got numeric value ({key_concepts}) instead of list of concepts")
+                        key_concepts = []
+                    else:
+                        key_concepts = []
+                        
+                logger.info(f"Extracted {len(key_concepts)} key concepts for section {section_id}")
+                
+            except Exception as e:
+                logger.error(f"Error extracting key information: {e}")
+                key_concepts = []  # Use empty list as fallback
 
-        
+            # STEP 2: Generate retrieval queries based on key concepts
+            retrieval_queries = []
+            try:
+                # Build queries from key concepts
+                for concept in key_concepts:
+                    if isinstance(concept, str) and concept.strip():
+                        retrieval_queries.append(f"{concept} Informationssicherheit")
+                
+                # Add section-specific queries
+                additional_queries = self.generate_retrieval_queries(section["title"], section_id)
+                
+                # Validate additional_queries is a list
+                if not isinstance(additional_queries, list):
+                    logger.error(f"additional_queries is not a list, got {type(additional_queries)}")
+                    # Try to convert or use an empty list
+                    if hasattr(additional_queries, '__iter__') and not isinstance(additional_queries, (str, bytes)):
+                        additional_queries = list(additional_queries)
+                    else:
+                        additional_queries = []
+                        
+                # Add the additional queries
+                retrieval_queries.extend(additional_queries)
+                
+                logger.info(f"Generated {len(retrieval_queries)} total retrieval queries")
+                
+            except Exception as e:
+                logger.error(f"Error generating retrieval queries: {e}")
+                # If we have no queries at this point, add a basic fallback query
+                if not retrieval_queries:
+                    retrieval_queries = [f"Informationssicherheit {section_id}"]
 
-            # Get relevant documents
-            retrieved_docs = self.vector_store_manager.retrieve_with_multiple_queries(
-                queries=retrieval_queries,
-                filter={"section_type": section.get("type", "generic")},
-                top_k=5
-            )
+            # STEP 3: Retrieve relevant documents
+            try:
+                # Get relevant documents using the queries
+                retrieved_docs = self.vector_store_manager.retrieve_with_multiple_queries(
+                    queries=retrieval_queries,
+                    filter={"section_type": section.get("type", "generic")},
+                    top_k=5
+                )
+                
+                # Validate retrieved_docs is a list
+                if not isinstance(retrieved_docs, list):
+                    logger.error(f"retrieved_docs is not a list, got {type(retrieved_docs)}")
+                    retrieved_docs = []
+                    
+                logger.info(f"Retrieved {len(retrieved_docs)} documents for context")
+                
+            except Exception as e:
+                logger.error(f"Error retrieving documents: {e}")
+                retrieved_docs = []  # Use empty list as fallback
 
-            # Extract context from retrieved documents
-            context_text = "\n\n".join([doc.page_content for doc in retrieved_docs])
+            # STEP 4: Extract context from retrieved documents
+            context_text = ""
+            try:
+                # Join document contents into a single context string
+                if retrieved_docs:
+                    context_text = "\n\n".join([
+                        doc.page_content for doc in retrieved_docs 
+                        if hasattr(doc, 'page_content') and isinstance(doc.page_content, str)
+                    ])
+                    
+                    # Limit context length to avoid token limits
+                    max_context_length = 4000
+                    if len(context_text) > max_context_length:
+                        context_text = context_text[:max_context_length] + "..."
+                else:
+                    # If no documents were retrieved, use a minimal context
+                    context_text = f"Bitte erstellen Sie Inhalte zum Thema {section['title']} für Informationssicherheitsschulungen."
+                    
+            except Exception as e:
+                logger.error(f"Error creating context text: {e}")
+                # Fallback to minimal context
+                context_text = f"Informationssicherheit Schulung für {section['title']}"
 
-            # Generate content for this section
-            organization = self.conversation_state["context_info"].get(
-                "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
-            audience = self.conversation_state["context_info"].get(
-                "Welche Mitarbeitergruppen sollen geschult werden?", "")
-            duration = self.conversation_state["context_info"].get(
-                "Wie lang sollte der E-Learning-Kurs maximal dauern?", "")
+            # STEP 5: Generate content using LLM
+            try:
+                # Get organization, audience and duration info
+                organization = self.conversation_state["context_info"].get(
+                    "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
+                audience = self.conversation_state["context_info"].get(
+                    "Welche Mitarbeitergruppen sollen geschult werden?", "")
+                duration = self.conversation_state["context_info"].get(
+                    "Wie lang sollte der E-Learning-Kurs maximal dauern?", "")
 
-            content = self.llm_manager.generate_content(
-                section_title=section["title"],
-                section_description=section.get("description", ""),
-                user_response=user_response,
-                organization=organization,
-                audience=audience,
-                duration=duration,
-                context_text=context_text
-            )
+                # Generate content with the LLM
+                content = self.llm_manager.generate_content(
+                    section_title=section["title"],
+                    section_description=section.get("description", ""),
+                    user_response=user_response,
+                    organization=organization,
+                    audience=audience,
+                    duration=duration,
+                    context_text=context_text
+                )
+                
+                # Validate content is a string
+                if not isinstance(content, str):
+                    logger.error(f"Generated content is not a string, got {type(content)}")
+                    # Try to convert to string or use fallback
+                    content = str(content) if content is not None else f"Inhalt für {section['title']} konnte nicht generiert werden."
+                    
+                logger.info(f"Successfully generated content for section {section_id} ({len(content)} chars)")
+                
+            except Exception as e:
+                logger.error(f"Error generating content: {e}")
+                # Fallback content
+                content = f"Für diesen Abschnitt ({section['title']}) konnte kein Inhalt generiert werden. Bitte versuchen Sie es später erneut."
 
-            # Perform advanced hallucination check
-            advanced_check = self.llm_manager.advanced_hallucination_detection(content)
+            # STEP 6: Perform quality checks on generated content
+            try:
+                # Check for hallucinations if we have content
+                if content:
+                    # Perform advanced hallucination check
+                    advanced_check = self.llm_manager.advanced_hallucination_detection(content)
+                    
+                    # Validate advanced_check is a dictionary
+                    if not isinstance(advanced_check, dict):
+                        logger.error(f"advanced_check is not a dictionary, got {type(advanced_check)}")
+                        advanced_check = {
+                            "confidence_score": 0.5,
+                            "suspicious_sections": []
+                        }
+                    
+                    # Perform standard hallucination check
+                    has_issues, verified_content = self.llm_manager.check_hallucinations(
+                        content=content,
+                        user_input=user_response,
+                        context_text=context_text
+                    )
+                    
+                    # Verify output is a string
+                    if not isinstance(verified_content, str):
+                        logger.error(f"verified_content is not a string, got {type(verified_content)}")
+                        verified_content = content  # Fallback to original content
+                    
+                    # Save the result of the quality check
+                    self.conversation_state["content_quality_checks"][section_id] = {
+                        "has_issues": has_issues,
+                        "confidence_score": advanced_check.get("confidence_score", 0.5),
+                        "suspicious_sections": advanced_check.get("suspicious_sections", [])
+                    }
+                    
+                    # Use the verified content
+                    content = verified_content
+                    
+                else:
+                    # No content to check
+                    self.conversation_state["content_quality_checks"][section_id] = {
+                        "has_issues": True,
+                        "confidence_score": 0.0,
+                        "suspicious_sections": ["No content generated"]
+                    }
+                    
+            except Exception as e:
+                logger.error(f"Error during quality checks: {e}")
+                # Don't let quality check failure prevent content delivery
+                self.conversation_state["content_quality_checks"][section_id] = {
+                    "has_issues": True,
+                    "confidence_score": 0.0,
+                    "suspicious_sections": [f"Error during quality check: {str(e)}"]
+                }
 
-            # Perform quality check
-            has_issues, verified_content = self.llm_manager.check_hallucinations(
-                content=content,
-                user_input=user_response,
-                context_text=context_text
-            )
-
-            # Save the result of the quality check
-            self.conversation_state["content_quality_checks"][section_id] = {
-                "has_issues": has_issues,
-                "confidence_score": advanced_check.get("confidence_score", 0.5),
-                "suspicious_sections": advanced_check.get("suspicious_sections", [])
-            }
-
-            # Save the generated content
-            self.conversation_state["generated_content"][section_id] = verified_content
+            # STEP 7: Save the generated content
+            self.conversation_state["generated_content"][section_id] = content
+            logger.info(f"Content generation completed for section {section_id}")
             
         except Exception as e:
-            logger.error(f"Error generating content for section {section_id}: {e}")
+            # Master exception handler to ensure the method never crashes
+            logger.error(f"Unhandled error generating content for section {section_id}: {e}")
             # Set a fallback content
-            self.conversation_state["generated_content"][section_id] = f"Für diesen Abschnitt konnte kein Inhalt generiert werden. Bitte versuchen Sie es später erneut."
+            self.conversation_state["generated_content"][section_id] = f"Für diesen Abschnitt konnte kein Inhalt generiert werden. Fehler: {str(e)}"
             # Also save a record of the error in the quality checks
             self.conversation_state["content_quality_checks"][section_id] = {
                 "has_issues": True,

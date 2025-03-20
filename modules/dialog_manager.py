@@ -616,10 +616,6 @@ class DialogManager:
                         if hasattr(doc, 'page_content') and isinstance(doc.page_content, str)
                     ])
                     
-                    # Limit context length to avoid token limits
-                    max_context_length = 4000
-                    if len(context_text) > max_context_length:
-                        context_text = context_text[:max_context_length] + "..."
                 else:
                     # If no documents were retrieved, use a minimal context
                     context_text = f"Bitte erstellen Sie Inhalte zum Thema {section['title']} für Informationssicherheitsschulungen."

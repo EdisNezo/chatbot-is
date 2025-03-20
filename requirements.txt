@@ -10,3 +10,8 @@ chromadb
 python-dotenv
 eventlet
 gunicorn
+langchain-ollama
+langchain-core
+langchain-huggingface
+langchain-text-splitters
+langchain-chroma

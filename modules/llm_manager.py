@@ -1,9 +1,10 @@
 import re
 import logging
 from typing import List, Dict, Any, Tuple, Optional
-from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
-from langchain_community.llms import Ollama
+from langchain_core.prompts import PromptTemplate
+from langchain_ollama.llms import OllamaLLM
+from langchain_core.runnables import RunnablePassthrough
 from langchain.callbacks.base import BaseCallbackHandler
 
 # Configure logging
@@ -76,7 +77,7 @@ class LLMManager:
         self.callback_handler = LLMCallbackHandler()
 
         # Initialize the LLM with callback
-        self.llm = Ollama(
+        self.llm = OllamaLLM(
             model=model_name,
             callbacks=[self.callback_handler],
         )

@@ -111,6 +111,8 @@ class DialogManager:
                 # All sections have been completed
                 self.conversation_state["current_step"] = "review"
                 return self.get_next_question()
+            
+            self.conversation_state["current_section"] = next_section["id"]
 
             # Check if we're switching to a new section
             current_section = self.conversation_state.get("current_section")
@@ -328,12 +330,27 @@ class DialogManager:
             # Handle template navigation phase
             elif self.conversation_state["current_step"] == "template_navigation":
                 # Ensure we have a valid current section
-                current_section = ensure_str(self.conversation_state.get("current_section"))
+                current_section = ensure_str(self.conversation_state.get("current_section", ""))
+                
+                # Check if current_section is empty after ensuring string type
                 if not current_section:
-                    logger.error("Current section is None when processing response")
-                    self.conversation_state["current_step"] = "review"
-                    return "Es ist ein Problem aufgetreten. Möchten Sie den bisher erstellten E-Learning-Kurs ansehen?"
+                    logger.warning("Current section is empty or None, getting next question without processing")
+                    # Find and set next valid section
+                    next_section = self.template_manager.get_next_section(
+                        ensure_list(self.conversation_state.get("completed_sections", []))
+                    )
+                    if next_section:
+                        self.conversation_state["current_section"] = next_section["id"]
+                        logger.info(f"Auto-corrected current_section to {next_section['id']}")
+                    else:
+                        # If no valid section can be found, move to review
+                        self.conversation_state["current_step"] = "review"
+                        logger.info("No valid sections found, transitioning to review")
+                        return self.get_next_question()
 
+                # Now that we've ensured current_section is valid, continue processing
+                current_section = ensure_str(self.conversation_state["current_section"])
+                
                 # Increase the question counter for the current section
                 self.conversation_state["current_section_question_count"] = ensure_int(
                     self.conversation_state.get("current_section_question_count", 0)) + 1
@@ -352,6 +369,21 @@ class DialogManager:
                     except Exception as content_error:
                         # Handle errors in content generation
                         logger.error(f"Error generating content for section {current_section}: {content_error}")
+                        
+                        # Use diagnostics if available
+                        try:
+                            from modules.diagnostics import diagnose_type_error
+                            if isinstance(content_error, TypeError):
+                                context = {
+                                    "section_id": current_section,
+                                    "response": response[:100] + "..." if len(response) > 100 else response
+                                }
+                                diagnosis = diagnose_type_error(content_error, context)
+                                logger.error(f"DIAGNOSTIC INFORMATION:\n{diagnosis}")
+                        except ImportError:
+                            # Diagnostics not available
+                            pass
+                        
                         # Store a placeholder in case of error
                         self.conversation_state["generated_content"][current_section] = (
                             f"Inhalt für diesen Abschnitt konnte nicht generiert werden. "
@@ -391,6 +423,21 @@ class DialogManager:
                     # Ask again if the user wants to see the result
                     return "Möchten Sie den erstellten E-Learning-Kurs sehen? Bitte antworten Sie mit 'Ja' oder 'Nein'."
 
+            # Validate conversation state is consistent
+            if self.conversation_state["current_step"] == "template_navigation" and not self.conversation_state.get("current_section"):
+                logger.warning("Inconsistent state detected: template_navigation step but no current_section")
+                # Fix the state
+                next_section = self.template_manager.get_next_section(
+                    ensure_list(self.conversation_state.get("completed_sections", []))
+                )
+                if next_section:
+                    self.conversation_state["current_section"] = next_section["id"]
+                    logger.info(f"Auto-corrected current_section to {next_section['id']}")
+                else:
+                    # If no section is available, move to review
+                    self.conversation_state["current_step"] = "review"
+                    logger.info("No sections available, transitioning to review")
+
             # Determine the next question
             try:
                 next_question = ensure_str(self.get_next_question())
@@ -403,21 +450,27 @@ class DialogManager:
             # Catch-all error handler for the entire method
             logger.error(f"Unexpected error in process_user_response: {e}")
             
-            # Use diagnostics to get detailed error information
-            context = {
-                "current_step": self.conversation_state.get("current_step"),
-                "current_section": self.conversation_state.get("current_section"),
-                "response_length": len(response) if isinstance(response, str) else 0
-            }
-            
-            if isinstance(e, TypeError):
-                diagnosis = diagnose_type_error(e, context)
-                logger.error(f"DIAGNOSTIC INFORMATION:\n{diagnosis}")
-            else:
-                # Run general diagnostics on state
-                results = run_diagnostics(self)
-                if results["issues_found"]:
-                    logger.error(f"DIAGNOSTIC RESULTS:\n{json.dumps(results, indent=2)}")
+            # Use diagnostics to get detailed error information if possible
+            try:
+                from modules.diagnostics import diagnose_type_error, run_diagnostics
+                context = {
+                    "current_step": self.conversation_state.get("current_step"),
+                    "current_section": self.conversation_state.get("current_section"),
+                    "response_length": len(response) if isinstance(response, str) else 0
+                }
+                
+                if isinstance(e, TypeError):
+                    diagnosis = diagnose_type_error(e, context)
+                    logger.error(f"DIAGNOSTIC INFORMATION:\n{diagnosis}")
+                else:
+                    # Run general diagnostics on state
+                    results = run_diagnostics(self)
+                    if results["issues_found"]:
+                        import json
+                        logger.error(f"DIAGNOSTIC RESULTS:\n{json.dumps(results, indent=2)}")
+            except ImportError:
+                # Diagnostics module not available
+                pass
             
             # Provide a user-friendly message and try to continue the conversation
             self.conversation_state["current_step"] = "template_navigation"

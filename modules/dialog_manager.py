@@ -167,7 +167,7 @@ class DialogManager:
                     "Welche Mitarbeitergruppen sollen geschult werden?", "")
 
                 # Try to generate question with LLM
-                question = self.safe_llm_call(
+                question = ensure_str(
                     self.llm_manager.generate_question(
                         section_title=section_title,
                         section_description=section_description,
@@ -950,26 +950,32 @@ class DialogManager:
             return []
     def safe_llm_call(self, prompt: str) -> str:
         """
-        Safely call the LLM, ensuring string output.
+        Ruft das LLM sicher auf und stellt sicher, dass eine String-Ausgabe zurückgegeben wird.
         
         Args:
-            prompt: The prompt to send to the LLM
+            prompt: Der Prompt, der an das LLM gesendet werden soll
             
         Returns:
-            String response from the LLM
+            String-Antwort vom LLM
         """
         try:
-            from modules.utils import ensure_str
+            # Wenn der prompt bereits das Ergebnis eines LLM-Aufrufs ist (z.B. vom llm_manager), geben wir ihn direkt zurück
+            if isinstance(prompt, str):
+                return prompt
+                
+            # Andernfalls müssen wir das LLM über den llm_manager aufrufen
+            response = self.llm_manager.llm(prompt)
             
-            # Call the LLM
-            response = self.llm(prompt)
-            
-            # Ensure response is a string
-            return ensure_str(response)
-            
+            # Stellen wir sicher, dass die Antwort ein String ist
+            if not isinstance(response, str):
+                logger.warning(f"LLM lieferte keine String-Antwort: {type(response)}")
+                response = str(response) if response is not None else ""
+                
+            return response
+                
         except Exception as e:
-            logger.error(f"Error in safe_llm_call: {e}")
-            return f"Error generating response: {str(e)}"
+            logger.error(f"Fehler in safe_llm_call: {e}")
+            return f"Es ist ein Fehler bei der Generierung der Antwort aufgetreten: {str(e)}"
         
     def diagnose_state(self):
         """

@@ -5,7 +5,7 @@ from datetime import datetime
 import re
 from langchain_core.documents import Document
 from modules.utils import ensure_type, ensure_list, ensure_dict, ensure_str
-from modules.diagnostics import diagnose_type_error, run_diagnostics
+from modules.utils import ensure_type, ensure_list, ensure_dict, ensure_str, ensure_int
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -104,19 +104,29 @@ class DialogManager:
         }
 
         try:
+            # Ensure we have a list of completed sections
+            completed_sections = ensure_list(self.conversation_state.get("completed_sections", []))
+            
             # Find the next uncompleted section
-            next_section = self.template_manager.get_next_section(self.conversation_state["completed_sections"])
+            next_section = self.template_manager.get_next_section(completed_sections)
 
             if next_section is None:
                 # All sections have been completed
                 self.conversation_state["current_step"] = "review"
                 return self.get_next_question()
-            
-            self._set_current_section(section_id)
 
+            # Extract section information
+            section_id = ensure_str(next_section["id"])
+            section_title = ensure_str(next_section.get("title", ""))
+            section_description = ensure_str(next_section.get("description", ""))
+            section_type = ensure_str(next_section.get("type", "generic"))
+            
             # Check if we're switching to a new section
             current_section = self.conversation_state.get("current_section")
-            is_new_section = current_section != next_section["id"]
+            is_new_section = current_section != section_id
+            
+            # Set the current section (converted to string)
+            self._set_current_section(section_id)
 
             # Initialize question_error_count if not present or reset for new section
             if is_new_section:
@@ -124,12 +134,6 @@ class DialogManager:
                 self.conversation_state["current_section_question_count"] = 0
                 self.conversation_state["question_error_count"] = 0
 
-            # Section information
-            section_id = next_section["id"]
-            section_title = next_section["title"]
-            section_description = next_section["description"]
-            section_type = next_section.get("type", "generic")
-            
             # User-friendly questions mapping
             user_friendly_questions = {
                 "threat_awareness": "Wie sieht ein typischer Arbeitstag in Ihrem Unternehmen aus, besonders wenn Sie mit Informationen oder Kommunikation arbeiten?",
@@ -163,12 +167,14 @@ class DialogManager:
                     "Welche Mitarbeitergruppen sollen geschult werden?", "")
 
                 # Try to generate question with LLM
-                question = self.llm_manager.generate_question(
-                    section_title=section_title,
-                    section_description=section_description,
-                    context_text=context_text,
-                    organization=organization,
-                    audience=audience
+                question = self.safe_llm_call(
+                    self.llm_manager.generate_question(
+                        section_title=section_title,
+                        section_description=section_description,
+                        context_text=context_text,
+                        organization=organization,
+                        audience=audience
+                    )
                 )
 
                 # Reset error counter on success
@@ -179,7 +185,8 @@ class DialogManager:
                 logger.error(f"Error during question generation for {section_title}: {e}")
 
                 # Increase error counter
-                self.conversation_state["question_error_count"] += 1
+                self.conversation_state["question_error_count"] = ensure_int(
+                    self.conversation_state.get("question_error_count", 0)) + 1
 
                 # Skip to next section if too many errors
                 if self.conversation_state["question_error_count"] > 2:
@@ -189,11 +196,8 @@ class DialogManager:
 
                 # Use predefined question as fallback
                 question = user_friendly_questions.get(section_id, 
-                                                      predefined_questions.get(section_type, 
-                                                                             f"Können Sie mir mehr über {section_title} in Ihrem Arbeitsalltag erzählen?"))
-
-            # Update the conversation state
-            self._set_current_section(section_id)
+                                                    predefined_questions.get(section_type, 
+                                                                            f"Können Sie mir mehr über {section_title} in Ihrem Arbeitsalltag erzählen?"))
 
             # Add transition info for new section
             friendly_section_names = {
@@ -211,11 +215,11 @@ class DialogManager:
                 return f"Nun sprechen wir über {friendly_name}.\n\n{question}"
 
             return question
-            
+                
         except Exception as e:
             logger.error(f"Error in get_next_template_question: {e}")
             # General fallback if something unexpected happens
-            section_id = self.conversation_state.get("current_section")
+            section_id = ensure_str(self.conversation_state.get("current_section", ""))
             if section_id:
                 return predefined_questions.get(section_id, "Können Sie mir mehr über Ihre tägliche Arbeit erzählen?")
             else:
@@ -986,14 +990,12 @@ class DialogManager:
     def _set_current_section(self, section_id):
         """
         Safely set the current section, ensuring it's stored as a string.
-        
-        Args:
-            section_id: The section ID to set (can be int, str, or None)
         """
         if section_id is None:
             self.conversation_state["current_section"] = None
+            logger.debug("Set current_section to None")
         else:
-            # Ensure section_id is stored as a string
-            self.conversation_state["current_section"] = ensure_str(section_id)
-        
-        logger.debug(f"Set current_section to {self.conversation_state['current_section']} (type: {type(self.conversation_state['current_section']).__name__})")
+            # Konvertieren und speichern
+            str_id = ensure_str(section_id)
+            self.conversation_state["current_section"] = str_id
+            logger.debug(f"Set current_section to '{str_id}' (converted from {type(section_id).__name__})")

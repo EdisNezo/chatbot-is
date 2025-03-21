@@ -80,20 +80,38 @@ class TemplateManager:
             ]
         }
 
+        template = default_template
+        
         if self.template_path:
             try:
                 with open(self.template_path, "r", encoding="utf-8") as f:
                     template = json.load(f)
 
                 logger.info(f"Template loaded: {self.template_path}")
-                return template
             except Exception as e:
                 logger.error(f"Error loading template: {e}")
                 logger.info("Using default template based on the example script")
-                return default_template
         else:
             logger.info("No template path specified. Using default template based on the example script")
-            return default_template
+        
+        # WICHTIGE VERBESSERUNG: Stelle sicher, dass alle section IDs Strings sind
+        try:
+            if "sections" in template and isinstance(template["sections"], list):
+                for i, section in enumerate(template["sections"]):
+                    if "id" in section and not isinstance(section["id"], str):
+                        original_id = section["id"]
+                        section["id"] = str(original_id)
+                        logger.warning(f"Converted section ID {original_id} (type: {type(original_id).__name__}) to string at index {i}")
+                        
+                    # Stelle sicher, dass auch "type" ein String ist
+                    if "type" in section and not isinstance(section["type"], str):
+                        original_type = section["type"]
+                        section["type"] = str(original_type)
+                        logger.warning(f"Converted section type {original_type} (type: {type(original_type).__name__}) to string at index {i}")
+        except Exception as e:
+            logger.error(f"Error while ensuring section IDs are strings: {e}")
+        
+        return template
 
     def get_section_by_id(self, section_id: str) -> Optional[Dict[str, Any]]:
         """

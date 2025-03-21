@@ -3,7 +3,8 @@ import logging
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 import re
-from langchain_core.documents import Document  
+from langchain_core.documents import Document
+from modules.utils import ensure_type, ensure_list, ensure_dict, ensure_str
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -220,25 +221,22 @@ class DialogManager:
     def generate_retrieval_queries(self, section_title: str, section_id: str) -> List[str]:
         """
         Generates retrieval queries for a section of the template.
-
-        Args:
-            section_title: Title of the section
-            section_id: ID of the section
-
-        Returns:
-            List of retrieval queries
         """
+        # Ensure input parameters are strings
+        section_title = ensure_str(section_title)
+        section_id = ensure_str(section_id)
+        
         try:
             # Base query from the section title
             base_query = section_title
 
             # Context-specific queries
-            organization = self.conversation_state["context_info"].get(
-                "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", "")
-            audience = self.conversation_state["context_info"].get(
-                "Welche Mitarbeitergruppen sollen geschult werden?", "")
-            compliance = self.conversation_state["context_info"].get(
-                "Gibt es spezifische Compliance-Anforderungen oder Branchenstandards, die berücksichtigt werden müssen?", "")
+            organization = ensure_str(self.conversation_state["context_info"].get(
+                "Für welche Art von Organisation erstellen wir den E-Learning-Kurs (z.B. Krankenhaus, Bank, Behörde)?", ""))
+            audience = ensure_str(self.conversation_state["context_info"].get(
+                "Welche Mitarbeitergruppen sollen geschult werden?", ""))
+            compliance = ensure_str(self.conversation_state["context_info"].get(
+                "Gibt es spezifische Compliance-Anforderungen oder Branchenstandards, die berücksichtigt werden müssen?", ""))
 
             # Industry-specific query
             industry_query = f"Informationssicherheit für {organization}"
@@ -293,58 +291,51 @@ class DialogManager:
             # Log the queries for debugging
             logger.info(f"Generated {len(queries)} retrieval queries for section '{section_id}'")
             
-            # Validate that queries is a list
-            if not isinstance(queries, list):
-                logger.error(f"queries is not a list, got {type(queries)}: {queries}")
-                return []  # Return empty list as fallback
-                
-            return queries
+            # Final validation - ensure we return a list of strings
+            return ensure_list(queries, str)
             
         except Exception as e:
             # Log the error and return an empty list as fallback
             logger.error(f"Error generating retrieval queries for section '{section_id}': {e}")
-            return []  # Always return a list, even if empty, to prevent type errors
+            return []
 
     def process_user_response(self, response: str) -> str:
         """
         Processes the user's response and updates the conversation state.
-
-        Args:
-            response: User's response
-
-        Returns:
-            Next question or message
         """
+        # Ensure response is a string
+        response = ensure_str(response)
+        
         try:
             # Handle context gathering phase
             if self.conversation_state["current_step"] == "context_gathering":
                 # Determine which context question is currently being answered
-                for question in self.context_questions:
+                for question in ensure_list(self.context_questions):
                     if question not in self.conversation_state["context_info"]:
                         self.conversation_state["context_info"][question] = response
                         break
 
                 # Check if all context questions have been answered
-                all_answered = all(question in self.conversation_state["context_info"] 
-                                for question in self.context_questions)
+                context_info = ensure_dict(self.conversation_state["context_info"])
+                all_answered = all(question in context_info for question in ensure_list(self.context_questions))
                 
                 if all_answered:
                     # Transition to template navigation
                     self.conversation_state["current_step"] = "template_navigation"
-                    # Log completion of context gathering
                     logger.info("Context gathering completed, transitioning to template navigation")
 
             # Handle template navigation phase
             elif self.conversation_state["current_step"] == "template_navigation":
                 # Ensure we have a valid current section
-                current_section = self.conversation_state.get("current_section")
+                current_section = ensure_str(self.conversation_state.get("current_section"))
                 if not current_section:
                     logger.error("Current section is None when processing response")
                     self.conversation_state["current_step"] = "review"
                     return "Es ist ein Problem aufgetreten. Möchten Sie den bisher erstellten E-Learning-Kurs ansehen?"
 
                 # Increase the question counter for the current section
-                self.conversation_state["current_section_question_count"] += 1
+                self.conversation_state["current_section_question_count"] = ensure_int(
+                    self.conversation_state.get("current_section_question_count", 0)) + 1
 
                 # Check if we've reached the maximum number of questions or if the answer is sufficient
                 max_questions_reached = self.conversation_state["current_section_question_count"] >= 3
@@ -367,21 +358,18 @@ class DialogManager:
                         )
 
                     # Mark section as completed
-                    self.conversation_state["completed_sections"].append(current_section)
+                    completed_sections = ensure_list(self.conversation_state.get("completed_sections", []))
+                    completed_sections.append(current_section)
+                    self.conversation_state["completed_sections"] = completed_sections
 
                     # Reset the question counter for the next section
                     self.conversation_state["current_section_question_count"] = 0
                     
-                    # Log completion of this section
                     logger.info(f"Completed section {current_section}, moving to next section")
                 else:
                     # Response is not adequate, generate a follow-up question
                     try:
-                        followup = self.generate_followup_question(response)
-                        # Ensure followup is a string
-                        if not isinstance(followup, str):
-                            logger.error(f"Follow-up question is not a string: {type(followup)}")
-                            followup = "Könnten Sie bitte etwas ausführlicher antworten? Ihre Erfahrungen sind wichtig für die Erstellung eines maßgeschneiderten Kurses."
+                        followup = ensure_str(self.generate_followup_question(response))
                         return followup
                     except Exception as followup_error:
                         logger.error(f"Error generating follow-up question: {followup_error}")
@@ -390,14 +378,10 @@ class DialogManager:
             # Handle review phase
             elif self.conversation_state["current_step"] == "review":
                 # Check if the user wants to see the result
-                if any(word in response.lower() for word in ["ja", "gerne", "zeigen", "ansehen"]):
+                if isinstance(response, str) and any(word in response.lower() for word in ["ja", "gerne", "zeigen", "ansehen"]):
                     self.conversation_state["current_step"] = "completion"
                     try:
-                        summary = self.get_script_summary()
-                        # Ensure summary is a string
-                        if not isinstance(summary, str):
-                            logger.error(f"Script summary is not a string: {type(summary)}")
-                            summary = "Leider konnte die Kurszusammenfassung nicht erstellt werden."
+                        summary = ensure_str(self.get_script_summary())
                         return "Hier ist der entworfene E-Learning-Kurs zur Informationssicherheit basierend auf Ihren Eingaben:\n\n" + summary
                     except Exception as summary_error:
                         logger.error(f"Error generating script summary: {summary_error}")
@@ -408,11 +392,7 @@ class DialogManager:
 
             # Determine the next question
             try:
-                next_question = self.get_next_question()
-                # Ensure next_question is a string
-                if not isinstance(next_question, str):
-                    logger.error(f"Next question is not a string: {type(next_question)}")
-                    next_question = "Wie kann ich Ihnen mit Ihrem E-Learning-Kurs weiterhelfen?"
+                next_question = ensure_str(self.get_next_question())
                 return next_question
             except Exception as question_error:
                 logger.error(f"Error getting next question: {question_error}")
@@ -424,23 +404,20 @@ class DialogManager:
             # Provide a user-friendly message and try to continue the conversation
             self.conversation_state["current_step"] = "template_navigation"
             return "Es tut mir leid, bei der Verarbeitung Ihrer Antwort ist ein Fehler aufgetreten. Lassen Sie uns mit einer anderen Frage fortfahren."
-
+    
     def is_response_adequate(self, response: str) -> bool:
         """
         Checks if the user's response is sufficiently detailed.
-
-        Args:
-            response: User's response
-
-        Returns:
-            True if the response is sufficient, False otherwise
         """
+        # Ensure response is a string
+        response = ensure_str(response)
+        
         # Improved heuristic: Check the length and content of the response
         min_word_count = 15
         word_count = len(response.split())
 
         # Check if the response is relevant to the current section
-        current_section_id = self.conversation_state["current_section"]
+        current_section_id = ensure_str(self.conversation_state.get("current_section"))
         current_section = self.template_manager.get_section_by_id(current_section_id)
 
         if current_section:
@@ -532,23 +509,13 @@ class DialogManager:
             # STEP 1: Extract key information for retrieval
             try:
                 # Get key concepts from user response
-                key_concepts = self.llm_manager.extract_key_information(
-                    section_type=section.get("type", "generic"),
-                    user_response=user_response
+                key_concepts = ensure_list(
+                    self.llm_manager.extract_key_information(
+                        section_type=section.get("type", "generic"),
+                        user_response=user_response
+                    ),
+                    str  # Ensure all items are strings
                 )
-                
-                # Defensive type checking - ensure key_concepts is a list
-                if not isinstance(key_concepts, list):
-                    logger.error(f"key_concepts is not a list, got {type(key_concepts)}: {key_concepts}")
-                    # Convert to list if possible, or use empty list as fallback
-                    if isinstance(key_concepts, str):
-                        key_concepts = [key_concepts]
-                    elif isinstance(key_concepts, (int, float)):
-                        logger.error(f"Got numeric value ({key_concepts}) instead of list of concepts")
-                        key_concepts = []
-                    else:
-                        key_concepts = []
-                        
                 logger.info(f"Extracted {len(key_concepts)} key concepts for section {section_id}")
                 
             except Exception as e:
@@ -560,21 +527,16 @@ class DialogManager:
             try:
                 # Build queries from key concepts
                 for concept in key_concepts:
-                    if isinstance(concept, str) and concept.strip():
+                    concept = ensure_str(concept)
+                    if concept.strip():
                         retrieval_queries.append(f"{concept} Informationssicherheit")
                 
                 # Add section-specific queries
-                additional_queries = self.generate_retrieval_queries(section["title"], section_id)
+                additional_queries = ensure_list(
+                    self.generate_retrieval_queries(section["title"], section_id),
+                    str  # Ensure all queries are strings
+                )
                 
-                # Validate additional_queries is a list
-                if not isinstance(additional_queries, list):
-                    logger.error(f"additional_queries is not a list, got {type(additional_queries)}")
-                    # Try to convert or use an empty list
-                    if hasattr(additional_queries, '__iter__') and not isinstance(additional_queries, (str, bytes)):
-                        additional_queries = list(additional_queries)
-                    else:
-                        additional_queries = []
-                        
                 # Add the additional queries
                 retrieval_queries.extend(additional_queries)
                 
@@ -589,17 +551,14 @@ class DialogManager:
             # STEP 3: Retrieve relevant documents
             try:
                 # Get relevant documents using the queries
-                retrieved_docs = self.vector_store_manager.retrieve_with_multiple_queries(
-                    queries=retrieval_queries,
-                    filter={"section_type": section.get("type", "generic")},
-                    top_k=5
+                retrieved_docs = ensure_list(
+                    self.vector_store_manager.retrieve_with_multiple_queries(
+                        queries=retrieval_queries,
+                        filter={"section_type": section.get("type", "generic")},
+                        top_k=5
+                    )
                 )
                 
-                # Validate retrieved_docs is a list
-                if not isinstance(retrieved_docs, list):
-                    logger.error(f"retrieved_docs is not a list, got {type(retrieved_docs)}")
-                    retrieved_docs = []
-                    
                 logger.info(f"Retrieved {len(retrieved_docs)} documents for context")
                 
             except Exception as e:
@@ -902,3 +861,25 @@ class DialogManager:
         except Exception as e:
             logger.error(f"Error testing vector retrieval: {e}")
             return []
+    def safe_llm_call(self, prompt: str) -> str:
+        """
+        Safely call the LLM, ensuring string output.
+        
+        Args:
+            prompt: The prompt to send to the LLM
+            
+        Returns:
+            String response from the LLM
+        """
+        try:
+            from modules.utils import ensure_str
+            
+            # Call the LLM
+            response = self.llm(prompt)
+            
+            # Ensure response is a string
+            return ensure_str(response)
+            
+        except Exception as e:
+            logger.error(f"Error in safe_llm_call: {e}")
+            return f"Error generating response: {str(e)}"

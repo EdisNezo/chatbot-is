@@ -112,30 +112,71 @@ class VectorStoreManager:
 
     def retrieve_with_multiple_queries(self, queries: List[str], filter: Dict[str, Any] = None, top_k: int = 3) -> List[Document]:
         """
-        Perform multiple retrieval queries and aggregate the results.
-
+        Retrieves documents using multiple queries and combines the results.
+        
         Args:
-            queries: List of search queries
-            filter: Filter for the search
-            top_k: Number of documents to return per query
-
+            queries: List of query strings
+            filter: Optional filter to apply to search
+            top_k: Number of documents to retrieve per query
+            
         Returns:
-            List of aggregated Document objects
+            Combined list of Document objects
         """
+        from modules.utils import ensure_list, ensure_str
+        
+        # Ensure queries is a list of strings
+        queries = ensure_list(queries, str)
+        
+        # Handle empty queries list
+        if not queries:
+            return []
+            
+        # Create a set to track unique document IDs
+        seen_docs = set()
         all_docs = []
-        seen_ids = set()  # Prevent duplicates
-
+        
         for query in queries:
-            docs = self.retrieve_documents(query, filter, top_k)
-
-            for doc in docs:
-                # Skip if document already exists
-                doc_id = f"{doc.metadata.get('source')}_{doc.metadata.get('chunk_id')}"
-                if doc_id in seen_ids:
-                    continue
-
-                seen_ids.add(doc_id)
-                all_docs.append(doc)
-
-        # Limit the total number
-        return all_docs[:top_k*2]
+            try:
+                docs = self.safe_retrieve_documents(query, k=top_k)
+                
+                # Add unique documents to the result list
+                for doc in docs:
+                    # Create a unique identifier for the document
+                    doc_id = hash(doc.page_content)
+                    
+                    if doc_id not in seen_docs:
+                        seen_docs.add(doc_id)
+                        all_docs.append(doc)
+                        
+            except Exception as e:
+                logger.error(f"Error retrieving documents for query '{query}': {e}")
+                # Continue with next query
+        
+        return all_docs
+    
+    def safe_retrieve_documents(self, query: str, k: int = 3) -> List[Document]:
+        """
+        Safely retrieve documents with type checking.
+        
+        Args:
+            query: Query string
+            k: Number of documents to retrieve
+            
+        Returns:
+            List of Document objects
+        """
+        from modules.utils import ensure_list, ensure_str
+        
+        try:
+            # Ensure query is a string
+            query = ensure_str(query)
+            
+            # Call the retrieve method
+            docs = self.vectorstore.similarity_search(query, k=k)
+            
+            # Ensure we get a list of Document objects
+            return ensure_list(docs)
+            
+        except Exception as e:
+            logger.error(f"Error in safe_retrieve_documents: {e}")
+            return []  # Return empty list on error

@@ -5,6 +5,7 @@ from datetime import datetime
 import re
 from langchain_core.documents import Document
 from modules.utils import ensure_type, ensure_list, ensure_dict, ensure_str
+from modules.diagnostics import diagnose_type_error, run_diagnostics
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -401,6 +402,23 @@ class DialogManager:
         except Exception as e:
             # Catch-all error handler for the entire method
             logger.error(f"Unexpected error in process_user_response: {e}")
+            
+            # Use diagnostics to get detailed error information
+            context = {
+                "current_step": self.conversation_state.get("current_step"),
+                "current_section": self.conversation_state.get("current_section"),
+                "response_length": len(response) if isinstance(response, str) else 0
+            }
+            
+            if isinstance(e, TypeError):
+                diagnosis = diagnose_type_error(e, context)
+                logger.error(f"DIAGNOSTIC INFORMATION:\n{diagnosis}")
+            else:
+                # Run general diagnostics on state
+                results = run_diagnostics(self)
+                if results["issues_found"]:
+                    logger.error(f"DIAGNOSTIC RESULTS:\n{json.dumps(results, indent=2)}")
+            
             # Provide a user-friendly message and try to continue the conversation
             self.conversation_state["current_step"] = "template_navigation"
             return "Es tut mir leid, bei der Verarbeitung Ihrer Antwort ist ein Fehler aufgetreten. Lassen Sie uns mit einer anderen Frage fortfahren."
@@ -679,6 +697,18 @@ class DialogManager:
         except Exception as e:
             # Master exception handler to ensure the method never crashes
             logger.error(f"Unhandled error generating content for section {section_id}: {e}")
+            
+            # Run diagnostics
+            context = {
+                "section_id": section_id,
+                "user_response_length": len(self.conversation_state["section_responses"].get(section_id, "")) if section_id in self.conversation_state["section_responses"] else 0,
+                "completed_sections_count": len(self.conversation_state.get("completed_sections", [])),
+            }
+            
+            if isinstance(e, TypeError):
+                diagnosis = diagnose_type_error(e, context)
+                logger.error(f"DIAGNOSTIC INFORMATION:\n{diagnosis}")
+            
             # Set a fallback content
             self.conversation_state["generated_content"][section_id] = f"Für diesen Abschnitt konnte kein Inhalt generiert werden. Fehler: {str(e)}"
             # Also save a record of the error in the quality checks
@@ -883,3 +913,20 @@ class DialogManager:
         except Exception as e:
             logger.error(f"Error in safe_llm_call: {e}")
             return f"Error generating response: {str(e)}"
+        
+    def diagnose_state(self):
+        """
+        Run diagnostics on the current conversation state.
+        Useful for troubleshooting.
+        """
+        try:
+            from modules.diagnostics import run_diagnostics
+            results = run_diagnostics(self)
+            
+            if results["issues_found"]:
+                logger.warning(f"DIAGNOSTIC RESULTS:\n{json.dumps(results, indent=2)}")
+                return results
+            return {"issues_found": False, "message": "No issues detected"}
+        except Exception as diag_error:
+            logger.error(f"Error running diagnostics: {diag_error}")
+            return {"issues_found": True, "error": str(diag_error)}

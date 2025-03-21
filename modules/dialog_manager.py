@@ -112,7 +112,7 @@ class DialogManager:
                 self.conversation_state["current_step"] = "review"
                 return self.get_next_question()
             
-            self.conversation_state["current_section"] = next_section["id"]
+            self._set_current_section(section_id)
 
             # Check if we're switching to a new section
             current_section = self.conversation_state.get("current_section")
@@ -193,7 +193,7 @@ class DialogManager:
                                                                              f"Können Sie mir mehr über {section_title} in Ihrem Arbeitsalltag erzählen?"))
 
             # Update the conversation state
-            self.conversation_state["current_section"] = section_id
+            self._set_current_section(section_id)
 
             # Add transition info for new section
             friendly_section_names = {
@@ -340,7 +340,7 @@ class DialogManager:
                         ensure_list(self.conversation_state.get("completed_sections", []))
                     )
                     if next_section:
-                        self.conversation_state["current_section"] = next_section["id"]
+                        self._set_current_section(next_section["id"])
                         logger.info(f"Auto-corrected current_section to {next_section['id']}")
                     else:
                         # If no valid section can be found, move to review
@@ -431,7 +431,7 @@ class DialogManager:
                     ensure_list(self.conversation_state.get("completed_sections", []))
                 )
                 if next_section:
-                    self.conversation_state["current_section"] = next_section["id"]
+                    self._set_current_section(next_section["id"])
                     logger.info(f"Auto-corrected current_section to {next_section['id']}")
                 else:
                     # If no section is available, move to review
@@ -983,3 +983,17 @@ class DialogManager:
         except Exception as diag_error:
             logger.error(f"Error running diagnostics: {diag_error}")
             return {"issues_found": True, "error": str(diag_error)}
+    def _set_current_section(self, section_id):
+        """
+        Safely set the current section, ensuring it's stored as a string.
+        
+        Args:
+            section_id: The section ID to set (can be int, str, or None)
+        """
+        if section_id is None:
+            self.conversation_state["current_section"] = None
+        else:
+            # Ensure section_id is stored as a string
+            self.conversation_state["current_section"] = ensure_str(section_id)
+        
+        logger.debug(f"Set current_section to {self.conversation_state['current_section']} (type: {type(self.conversation_state['current_section']).__name__})")
